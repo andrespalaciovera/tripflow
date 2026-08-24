@@ -35,7 +35,8 @@ export default {
         'alert-medium': '#ECCD7F',
         'alert-max': '#E29683',
 
-        'pills': 'rgba(255, 255, 255, 0.25)'
+        'pills': 'rgba(255, 255, 255, 0.25)',
+        'sub-cards': 'rgba(255, 255, 255, 0.45)'
       },
       borderRadius: {
         'xs': '8px',

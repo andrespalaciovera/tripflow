@@ -5,6 +5,8 @@ import StatusBadge from './StatusBadge';
 import ExpenseRow from './ExpenseRow';
 import TopNavbar from './TopNavbar';
 import TripComingCard from './TripComingCard';
+import TripActiveCard from './TripActiveCard';
+import TripCompletedCard from './TripCompletedCard';
 import AddExpensesForm from './AddExpensesForm';
 import NewTripDrawer from './NewTripDrawer';
 
@@ -233,6 +235,53 @@ export const Sandbox = () => {
                 fechaInicio: new Date(Date.now() + 29 * 24 * 60 * 60 * 1000).toISOString(),
               }}
               onDelete={(id) => console.log('Eliminar viaje:', id)}
+            />
+          </div>
+        </section>
+
+        {/* Sección: TripActiveCard */}
+        <section className="bg-surface rounded-lg shadow-soft p-6 border border-stroke-form">
+          <h2 className="text-h2 font-display text-ink-primary mb-6">
+            Tarjeta de Viaje Activo (TripActiveCard)
+          </h2>
+          <p className="text-label text-ink-muted uppercase tracking-wider mb-4">
+            Demostración del componente TripActiveCard.jsx: estado por defecto con anillo de progreso y barra de días.
+            Haz clic en "Calcula si puedes pagarlo" para pasar al estado "Calculadora" (Iteración 2).
+          </p>
+
+          <div className="flex flex-col gap-4 p-4 bg-bg-navbar-forms rounded-md border border-stroke-form items-center">
+            <TripActiveCard
+              trip={{
+                destino: 'España',
+                motivo: 'Vacaciones',
+                presupuestoTotal: 6500000,
+                // Viaje que inició hace 4 días y dura 10 días en total
+                fechaInicio: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(),
+                fechaFin: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(),
+              }}
+              totalGastado={1495000}
+              onFinalizar={() => console.log('Finalizar viaje')}
+              onCalcularPago={() => console.log('Calcula si puedes pagarlo')}
+            />
+          </div>
+        </section>
+
+        {/* Sección: TripCompletedCard */}
+        <section className="bg-surface rounded-lg shadow-soft p-6 border border-stroke-form">
+          <h2 className="text-h2 font-display text-ink-primary mb-6">
+            Tarjeta de Viaje Finalizado (TripCompletedCard)
+          </h2>
+          <p className="text-label text-ink-muted uppercase tracking-wider mb-4">
+            Demostración del componente TripCompletedCard.jsx: resumen de solo lectura para el historial
+          </p>
+
+          <div className="flex flex-col gap-4 p-4 bg-bg-navbar-forms rounded-md border border-stroke-form items-center">
+            <TripCompletedCard
+              trip={{
+                destino: 'España',
+                presupuestoTotal: 6500000,
+              }}
+              totalGastado={5980000}
             />
           </div>
         </section>
