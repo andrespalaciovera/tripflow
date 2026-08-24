@@ -6,6 +6,7 @@ import TripComingCard from '../components/TripComingCard';
 import TripCompletedCard from '../components/TripCompletedCard';
 import ExpenseRow from '../components/ExpenseRow';
 import AddExpensesForm from '../components/AddExpensesForm';
+import NewTripDrawer from '../components/NewTripDrawer';
 
 /**
  * Formatea un número como moneda COP, sin decimales, seguido del código de moneda.
@@ -147,6 +148,9 @@ export const Dashboard = () => {
   // muestra expandido solo como referencia de diseño).
   const [mostrarFormularioGastos, setMostrarFormularioGastos] = useState(false);
 
+  // Controla la visibilidad del drawer "Nuevo viaje": mismo patrón, oculto por defecto
+  const [isNewTripDrawerOpen, setIsNewTripDrawerOpen] = useState(false);
+
   return (
     <div className="min-h-screen w-full bg-bg-body font-body text-ink-primary flex flex-col">
       {/* Barra de navegación superior: logo + interruptor de moneda, sin enlaces de navegación */}
@@ -156,8 +160,8 @@ export const Dashboard = () => {
         {/* Encabezado: saludo + acción de nuevo viaje */}
         <div className="flex flex-wrap justify-between items-center gap-4 mb-8">
           <h1 className="text-h1 font-display text-ink-primary">Buenos días ☀️</h1>
-          {/* TODO: conectar con NewTripDrawer y /lib/store.js en un paso posterior */}
-          <Button variant="primary" onClick={() => console.log('Abrir formulario de nuevo viaje')}>
+          {/* TODO: conectar onSave a /lib/store.js en un paso posterior */}
+          <Button variant="primary" onClick={() => setIsNewTripDrawerOpen(true)}>
             + Nuevo viaje
           </Button>
         </div>
@@ -263,6 +267,17 @@ export const Dashboard = () => {
           </nav>
         </div>
       </footer>
+
+      {/* Drawer "Nuevo viaje": oculto por defecto, se superpone sobre el dashboard atenuado.
+          Sin wiring a store.js todavía: onSave solo registra el viaje y cierra el drawer. */}
+      <NewTripDrawer
+        isOpen={isNewTripDrawerOpen}
+        onClose={() => setIsNewTripDrawerOpen(false)}
+        onSave={(nuevoViaje) => {
+          console.log('Nuevo viaje a guardar (pendiente de conectar a store.js):', nuevoViaje);
+          setIsNewTripDrawerOpen(false);
+        }}
+      />
     </div>
   );
 };
