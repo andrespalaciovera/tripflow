@@ -5,17 +5,17 @@ import React from 'react';
  */
 const ESTADOS = {
   activo: {
-    clases: 'bg-status-activo-bg text-status-activo-text',
+    clases: 'bg-pills text-status-activo-text',
     etiquetaDefecto: 'Activo',
     tienePunto: true,
   },
   proximo: {
-    clases: 'bg-status-proximo-bg text-status-proximo-text',
+    clases: 'bg-pills text-status-proximo-text',
     etiquetaDefecto: 'Próximo',
     tienePunto: false,
   },
   finalizado: {
-    clases: 'bg-status-finalizado-bg text-status-finalizado-text',
+    clases: 'bg-pills text-status-finalizado-text',
     etiquetaDefecto: 'Finalizado',
     tienePunto: false,
   },

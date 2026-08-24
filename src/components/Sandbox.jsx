@@ -1,15 +1,21 @@
-import React from 'react';
+import React, { useState } from 'react';
 import Button from './Button';
 import Input from './Input';
 import StatusBadge from './StatusBadge';
 import ExpenseRow from './ExpenseRow';
 import TopNavbar from './TopNavbar';
+import TripComingCard from './TripComingCard';
+import AddExpensesForm from './AddExpensesForm';
+import NewTripDrawer from './NewTripDrawer';
 
 /**
  * Sandbox de Componentes UI para Tripflow.
  * Actúa como un espacio aislado de pruebas (mini-Storybook) para visualizar y validar componentes.
  */
 export const Sandbox = () => {
+  // Controla la visibilidad del drawer de "Nuevo viaje"
+  const [drawerAbierto, setDrawerAbierto] = useState(false);
+
   return (
     <div className="min-h-screen w-full bg-bg-body font-body text-ink-primary p-8 md:p-12">
       {/* Encabezado principal del Sandbox */}
@@ -205,6 +211,72 @@ export const Sandbox = () => {
               relativeTime="hace 2d"
             />
           </div>
+        </section>
+
+        {/* Sección: TripComingCard */}
+        <section className="bg-surface rounded-lg shadow-soft p-6 border border-stroke-form">
+          <h2 className="text-h2 font-display text-ink-primary mb-6">
+            Tarjetas de Viaje (TripComingCard)
+          </h2>
+          <p className="text-label text-ink-muted uppercase tracking-wider mb-4">
+            Demostración del componente TripComingCard.jsx con un viaje simulado
+          </p>
+
+          <div className="flex flex-col gap-4 p-4 bg-bg-navbar-forms rounded-md border border-stroke-form items-center">
+            <TripComingCard
+              trip={{
+                id: 'trip-001',
+                destino: 'México',
+                motivo: 'Negocios',
+                presupuesto: 4000000,
+                // Fecha de inicio: 29 días en el futuro
+                fechaInicio: new Date(Date.now() + 29 * 24 * 60 * 60 * 1000).toISOString(),
+              }}
+              onDelete={(id) => console.log('Eliminar viaje:', id)}
+            />
+          </div>
+        </section>
+
+        {/* Sección: Formulario para agregar gastos */}
+        <section className="bg-surface rounded-lg shadow-soft p-6 border border-stroke-form">
+          <h2 className="text-h2 font-display text-ink-primary mb-6">
+            Formulario de Gastos (AddExpensesForm)
+          </h2>
+          <p className="text-label text-ink-muted uppercase tracking-wider mb-4">
+            Demostración del componente AddExpensesForm.jsx: estados vacío/lleno y colapsable
+          </p>
+
+          <div className="p-4 bg-bg-body rounded-md border border-stroke-form">
+            <AddExpensesForm
+              onGuardar={(gastos) => console.log('Gastos guardados:', gastos)}
+              onCancelar={() => console.log('Formulario cancelado')}
+            />
+          </div>
+        </section>
+
+        {/* Sección: Drawer de nuevo viaje */}
+        <section className="bg-surface rounded-lg shadow-soft p-6 border border-stroke-form">
+          <h2 className="text-h2 font-display text-ink-primary mb-6">
+            Drawer de Nuevo Viaje (NewTripDrawer)
+          </h2>
+          <p className="text-label text-ink-muted uppercase tracking-wider mb-4">
+            Demostración del componente NewTripDrawer.jsx: panel lateral con reglas de negocio
+          </p>
+
+          <div className="flex p-4 bg-bg-navbar-forms rounded-md border border-stroke-form">
+            <Button variant="primary" onClick={() => setDrawerAbierto(true)}>
+              Nuevo viaje
+            </Button>
+          </div>
+
+          <NewTripDrawer
+            isOpen={drawerAbierto}
+            onClose={() => setDrawerAbierto(false)}
+            onSave={(nuevoViaje) => {
+              console.log('Viaje creado:', nuevoViaje);
+              setDrawerAbierto(false);
+            }}
+          />
         </section>
 
       </main>
