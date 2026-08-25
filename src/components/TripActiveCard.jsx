@@ -238,7 +238,7 @@ export const TripActiveCard = ({ trip, totalGastado, mostrarEnCop = true, onFina
   }
 
   return (
-    <div className="relative overflow-hidden bg-status-activo-bg rounded-lg shadow-soft p-6 w-full max-w-md">
+    <div className="relative overflow-hidden bg-status-activo-bg rounded-lg shadow-soft p-6 w-full max-w-md mx-auto">
       {/* Encabezado: Badge de estado y acción de finalizar */}
       <div className="flex justify-between items-center mb-5">
         <StatusBadge status="activo" />

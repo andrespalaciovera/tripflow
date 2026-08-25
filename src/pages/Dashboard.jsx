@@ -102,9 +102,9 @@ export const Dashboard = () => {
 
       <main className="flex-1 w-full max-w-6xl mx-auto px-4 md:px-6 py-8 md:py-10">
         {/* Encabezado: saludo + acción de nuevo viaje */}
-        <div className="flex flex-wrap justify-between items-center gap-4 mb-8">
+        <div className="flex flex-col md:flex-row md:flex-wrap justify-between items-stretch md:items-center gap-4 mb-8">
           <h1 className="text-h1 font-display text-ink-primary">Buenos días ☀️</h1>
-          <Button variant="primary" onClick={() => setIsNewTripDrawerOpen(true)}>
+          <Button variant="primary" className="w-full md:w-auto" onClick={() => setIsNewTripDrawerOpen(true)}>
             + Nuevo viaje
           </Button>
         </div>
