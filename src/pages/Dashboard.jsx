@@ -268,7 +268,7 @@ export const Dashboard = () => {
                     </div>
 
                     {/* ESCRITORIO: columna vertical con separación entre tarjetas */}
-                    <div className="hidden md:flex md:flex-col md:gap-6">
+                    <div className="hidden md:flex md:flex-col md:gap-6 [&>*]:w-full [&>*]:!max-w-full">
                       {tarjetasDeViajes}
                     </div>
                   </>
