@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Button from './Button';
 import Input from './Input';
+import DatePicker from './DatePicker';
 import { saveExpense } from '../lib/store';
 import { convertirLocalACOP, derivarMonedaDesdePais, formatearMoneda } from '../lib/budget';
 
@@ -550,11 +551,10 @@ export const AddExpensesForm = ({ trip, onGuardar = () => {}, onCancelar = () =>
               </div>
 
               <div className="flex flex-col gap-1.5 w-full">
-                <Input
+                <DatePicker
                   label="Fecha"
-                  type="date"
                   value={fecha}
-                  onChange={(e) => setFecha(e.target.value)}
+                  onChange={setFecha}
                 />
                 {errores.fecha && <span className="text-label text-alert-max px-1">{errores.fecha}</span>}
               </div>
