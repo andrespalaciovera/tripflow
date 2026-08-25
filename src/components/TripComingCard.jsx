@@ -1,5 +1,6 @@
 import React from 'react';
 import StatusBadge from './StatusBadge';
+import { calcularDiasFaltantes } from '../lib/budget';
 
 /**
  * Componente Organismo para mostrar un viaje en estado "Próximo".
@@ -14,23 +15,7 @@ import StatusBadge from './StatusBadge';
  * @param {Function} props.onDelete - Función callback al presionar el botón "Eliminar"
  */
 export const TripComingCard = ({ trip, onDelete }) => {
-  // Función auxiliar para calcular días faltantes
-  const calcularDiasFaltantes = (fechaInicioStr) => {
-    const hoy = new Date();
-    // Normalizar a medianoche para evitar diferencias por horas
-    hoy.setHours(0, 0, 0, 0);
-    
-    // Asumir que la fecha de inicio viene sin hora o usar medianoche
-    const fechaInicio = new Date(fechaInicioStr);
-    fechaInicio.setHours(0, 0, 0, 0);
-
-    const diferenciaMilisegundos = fechaInicio.getTime() - hoy.getTime();
-    const dias = Math.ceil(diferenciaMilisegundos / (1000 * 3600 * 24));
-    
-    // Evitar valores negativos si el viaje ya debería haber comenzado
-    return Math.max(0, dias);
-  };
-
+  // Días faltantes: lógica de negocio compartida, ver /lib/budget.js
   const diasFaltantes = calcularDiasFaltantes(trip.fechaInicio);
 
   // Calcular el progreso visual asumiendo una ventana de 30 días

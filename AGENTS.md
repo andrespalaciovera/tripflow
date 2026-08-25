@@ -82,9 +82,11 @@ The field stays editable — this only pre-fills an initial value.
 ### "Can I afford this?" threshold
 
 ```
-entered_amount / remaining_daily_budget ≤ 80% → green result (alert-min)
-> 80% → rose result (alert-max)
+entered_amount / remaining_daily_budget ≤ 69% → green result (alert-min)
+> 69% → rose result (alert-max)
 ```
+Referred to internally as **"la Regla del 69%"**.
+
 No text verdict ("Yes you can" / "No you can't") — just two percentages (% of daily budget, % of total budget), with the banner color communicating the result.
 
 ### "Recent expenses"

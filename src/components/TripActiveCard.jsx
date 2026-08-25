@@ -3,75 +3,16 @@ import StatusBadge from './StatusBadge';
 import Button from './Button';
 import Input from './Input';
 import TripCompletedCard from './TripCompletedCard';
-
-/**
- * Tasas de conversión fijas (MVP) de moneda local a COP, según el destino del viaje.
- * Si el destino no está en la tabla, se usa 1 (asume que ya está en COP).
- */
-const TASAS_CONVERSION_COP = {
-  usa: 4000,
-  españa: 4300,
-  francia: 4300,
-  alemania: 4300,
-  italia: 4300,
-  méxico: 230,
-  mexico: 230,
-  colombia: 1,
-};
-
-/**
- * Formatea un número como moneda COP, sin decimales.
- * @param {number} valor - Monto a formatear
- * @returns {string} Monto formateado (ej. "$1.495.000")
- */
-const formatearMoneda = (valor) => {
-  const monto = Number.isFinite(valor) ? valor : 0;
-  return new Intl.NumberFormat('es-CO', {
-    style: 'currency',
-    currency: 'COP',
-    maximumFractionDigits: 0,
-  }).format(monto);
-};
-
-/**
- * Calcula el número de días completos entre dos fechas (inclusivo).
- * Se normalizan ambas fechas a medianoche para evitar desfases por horas.
- * @param {string|Date} fechaInicioStr
- * @param {string|Date} fechaFinStr
- * @returns {number} Total de días del viaje (mínimo 1)
- */
-const calcularDiasTotales = (fechaInicioStr, fechaFinStr) => {
-  const inicio = new Date(fechaInicioStr);
-  const fin = new Date(fechaFinStr);
-  inicio.setHours(0, 0, 0, 0);
-  fin.setHours(0, 0, 0, 0);
-
-  const diferenciaMilisegundos = fin.getTime() - inicio.getTime();
-  const dias = Math.round(diferenciaMilisegundos / (1000 * 3600 * 24)) + 1;
-
-  // Un viaje siempre dura al menos 1 día
-  return Math.max(1, dias);
-};
-
-/**
- * Calcula el día actual del viaje (día 1 = fecha de inicio).
- * Se acota entre 1 y diasTotales para que nunca se salga del rango del viaje.
- * @param {string|Date} fechaInicioStr
- * @param {number} diasTotales
- * @returns {number} Día actual del viaje
- */
-const calcularDiaActual = (fechaInicioStr, diasTotales) => {
-  const hoy = new Date();
-  const inicio = new Date(fechaInicioStr);
-  hoy.setHours(0, 0, 0, 0);
-  inicio.setHours(0, 0, 0, 0);
-
-  const diferenciaMilisegundos = hoy.getTime() - inicio.getTime();
-  const diasTranscurridos = Math.floor(diferenciaMilisegundos / (1000 * 3600 * 24)) + 1;
-
-  // Se acota entre el día 1 y el último día del viaje
-  return Math.min(Math.max(1, diasTranscurridos), diasTotales);
-};
+import {
+  calcularDiasTotales,
+  calcularDiaActual,
+  calcularPresupuestoRestante,
+  calcularPresupuestoDiarioRestante,
+  calcularPorcentajeGastado,
+  calcularImpactoGasto,
+  convertirAMonedaLocal,
+  formatearMoneda,
+} from '../lib/budget';
 
 /**
  * Componente Organismo para mostrar un viaje en estado "Activo" (viaje en curso).
@@ -126,27 +67,21 @@ export const TripActiveCard = ({ trip, totalGastado, onFinalizar, onCalcularPago
     return <TripCompletedCard totalGastado={totalGastado} trip={trip} />;
   }
 
-  // Umbral (Regla del 69%): por encima de este porcentaje del presupuesto diario,
-  // el gasto se considera riesgoso (RESULT_BAD); por debajo o igual, es viable (RESULT_GOOD)
-  const UMBRAL_GASTO_RIESGOSO = 69;
-
   /**
    * Convierte el valor ingresado en moneda local a COP según el destino del viaje,
    * usando tasas fijas (MVP), y determina si el gasto es viable o riesgoso comparándolo
-   * contra el presupuesto diario y total (Regla del 69%).
+   * contra el presupuesto diario y total (Regla del 69%, ver /lib/budget.js).
    */
   const manejarCalculo = () => {
-    const claveDestino = (destino || '').trim().toLowerCase();
-    const tasa = TASAS_CONVERSION_COP[claveDestino] ?? 1;
-
-    const valorEnCop = Number(valorIngresado) * tasa;
-
-    // Porcentaje que representa el gasto sobre el presupuesto diario y total, sin decimales
-    const porcentajeDiario = presupuestoDiario > 0 ? Math.round((valorEnCop / presupuestoDiario) * 100) : 0;
-    const porcentajeTotal = presupuestoTotal > 0 ? Math.round((valorEnCop / presupuestoTotal) * 100) : 0;
+    const valorEnCop = convertirAMonedaLocal(Number(valorIngresado), destino);
+    const { porcentajeDiario, porcentajeTotal, riesgoso } = calcularImpactoGasto(
+      presupuestoDiarioRestante,
+      presupuestoTotal,
+      valorEnCop
+    );
 
     setPorcentajesCalculados({ porcentajeDiario, porcentajeTotal });
-    setVistaActual(porcentajeDiario > UMBRAL_GASTO_RIESGOSO ? 'RESULT_BAD' : 'RESULT_GOOD');
+    setVistaActual(riesgoso ? 'RESULT_BAD' : 'RESULT_GOOD');
   };
 
   /**
@@ -171,22 +106,21 @@ export const TripActiveCard = ({ trip, totalGastado, onFinalizar, onCalcularPago
     setMostrarConfirmacion(false);
   };
 
-  // --- Funciones matemáticas universales -----------------------------------
+  // --- Lógica de negocio: fuente única en /lib/budget.js ---------------------
 
   // Porcentaje gastado del presupuesto, acotado a 100 para no desbordar el SVG
-  const porcentajeGastadoReal = presupuestoTotal > 0 ? (totalGastado / presupuestoTotal) * 100 : 0;
-  const porcentajeGastado = Math.min(100, Math.max(0, porcentajeGastadoReal));
+  const porcentajeGastado = calcularPorcentajeGastado(presupuestoTotal, totalGastado);
 
   // Duración total del viaje y día actual dentro de ese rango
   const diasTotales = calcularDiasTotales(fechaInicio, fechaFin);
   const diaActual = calcularDiaActual(fechaInicio, diasTotales);
 
   // Presupuesto restante y sugerencia de gasto diario
-  const presupuestoRestante = presupuestoTotal - totalGastado;
+  const presupuestoRestante = calcularPresupuestoRestante(presupuestoTotal, totalGastado);
   const diasRestantesConHoy = diasTotales - diaActual + 1;
-  const presupuestoDiario = diasRestantesConHoy > 0 ? presupuestoRestante / diasRestantesConHoy : presupuestoRestante;
+  const presupuestoDiarioRestante = calcularPresupuestoDiarioRestante(presupuestoRestante, diasRestantesConHoy);
 
-  // Progreso de la barra lineal de días transcurridos
+  // Progreso de la barra lineal de días transcurridos (presentación, no negocio)
   const porcentajeDias = diasTotales > 0 ? Math.min(100, (diaActual / diasTotales) * 100) : 0;
 
   // --- Geometría del anillo SVG de progreso ---------------------------------
@@ -376,7 +310,7 @@ export const TripActiveCard = ({ trip, totalGastado, onFinalizar, onCalcularPago
       {/* Sección inferior: gasto diario disponible (tarjeta blanca de solo texto) */}
       <div className="bg-bg-surface rounded-md p-4">
         <p className="text-body font-body text-ink-primary">Cada día restante puedes gastar</p>
-        <p className="text-h3 font-display text-ink-primary mt-1">{formatearMoneda(presupuestoDiario)}</p>
+        <p className="text-h3 font-display text-ink-primary mt-1">{formatearMoneda(presupuestoDiarioRestante)}</p>
       </div>
 
       {/* Acción principal: fuera y debajo de la tarjeta blanca */}
