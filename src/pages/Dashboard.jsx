@@ -20,6 +20,7 @@ import {
   convertirLocalACOP,
   formatearMontoSegunModoMoneda,
 } from '../lib/budget';
+import { obtenerSaludo } from '../lib/saludo';
 
 /**
  * Convierte una marca de tiempo ISO en un texto relativo corto ("hace 1h", "hace 2d").
@@ -41,6 +42,9 @@ const formatearTiempoRelativo = (creadoEnIso) => {
  * se deriva con calcularEstadoViaje() de /lib/budget.js — nunca es un campo propio.
  */
 export const Dashboard = () => {
+  // Saludo dinámico según la hora en Bogotá
+  const { texto: saludoTexto, emoji: saludoEmoji } = obtenerSaludo();
+
   // Lista de viajes leída del store; única fuente de verdad para "Tus viajes"
   const [viajes, setViajes] = useState([]);
 
@@ -253,7 +257,7 @@ export const Dashboard = () => {
       <main className="flex-1 w-full max-w-6xl mx-auto px-4 md:px-6 py-8 md:py-10">
         {viajes.length === 0 ? (
           <div className="flex flex-col items-center justify-center flex-1 h-full min-h-[60vh] text-center px-4">
-            <h1 className="text-h1 font-display text-ink-primary mb-4">Buenos días ☀️</h1>
+            <h1 className="text-h1 font-display text-ink-primary mb-4">{saludoTexto} {saludoEmoji}</h1>
             <h2 className="text-h2 font-display text-ink-primary mb-2">Aun no tienes viajes planeados</h2>
             <p className="text-body font-body text-ink-muted max-w-md mb-6">Crea tu primer viaje para empezar a controlar tu presupuesto y organizar tus gastos de forma sencilla.</p>
             <Button variant="primary" onClick={() => setIsNewTripDrawerOpen(true)}>
@@ -264,7 +268,7 @@ export const Dashboard = () => {
           <>
             {/* Encabezado: saludo */}
             <div className="mb-8">
-              <h1 className="text-h1 font-display text-ink-primary">Buenos días ☀️</h1>
+              <h1 className="text-h1 font-display text-ink-primary">{saludoTexto} {saludoEmoji}</h1>
             </div>
 
             {/* Layout de dos columnas: viajes a la izquierda, gastos a la derecha */}

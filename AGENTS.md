@@ -105,6 +105,13 @@ This is a distinct rule from "Can I afford this?" above: that one is prospective
 ### "Recent expenses"
 Only shows expenses for the **Activo** trip. It is not a cross-trip feed.
 
+### Time-of-day greeting
+The header greeting ('Buenos días'/'Buenas tardes'/'Buenas noches') is always based on the current time in Bogotá (America/Bogota timezone), regardless of the user's device timezone — never use local device time for this.
+
+05:00–11:59 → 'Buenos días' ☀️
+12:00–18:59 → 'Buenas tardes' 🌤️
+19:00–04:59 → 'Buenas noches' 🌙
+
 ---
 
 ## 4. Tokens — `tailwind.config.js`
