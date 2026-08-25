@@ -228,6 +228,13 @@ Photo upload zone (copy: "Take one or several photos of your receipts" — note:
 
 No categories — dropped due to friction.
 
+### Receipt extraction UX states
+While /api/extract-receipt is in flight, a rotating playful loading message replaces the plain 'Analizando recibo...' label, cycling every ~3 seconds through a fixed list of messages (see AddExpensesForm.jsx for the exact list).
+
+On total failure (both monto and comercio null, or a network/timeout error): show a friendly, non-scary message acknowledging the failure, then fall back to manual entry — this REPLACES the previous fully-silent-fallback behavior with a visible but lighthearted one.
+
+On partial success: if only monto was extracted, tell the user so and prompt them to fill in the título manually. If only comercio was extracted, tell the user so and prompt them to fill in the monto manually. If both were extracted, no message is shown — fields are simply pre-filled as before.
+
 ### Final report (inside the card, after "End trip")
 Budget vs. total spent · corresponding % · message based on outcome (within/over budget) · full expense history for the trip (reusing `ExpenseRow`) · "Continue" button → collapses into the compact "Finalizado" card (the trip is never deleted)
 

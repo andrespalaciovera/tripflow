@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Button from './Button';
 import Input from './Input';
 import { saveExpense } from '../lib/store';
@@ -48,6 +48,23 @@ const IconoFoto = () => (
 
 /** Fecha de hoy en formato nativo de <input type="date"> (YYYY-MM-DD) */
 const obtenerFechaDeHoy = () => new Date().toISOString().slice(0, 10);
+
+// Lista fija de mensajes lúdicos que rotan mientras /api/extract-receipt está
+// en vuelo, en reemplazo del rótulo estático "Analizando recibo..."
+// (AGENTS.md → "Receipt extraction UX states"). Si la extracción tarda más
+// que el ciclo completo, simplemente vuelve a empezar desde el primero.
+const MENSAJES_EXTRACCION = [
+  'Leyendo tu factura...',
+  'Equilibrando la luz...',
+  'Poniéndome los anteojos...',
+  'Descifrando jeroglíficos...',
+  'Contando los ceros...',
+  'Afinando la vista...',
+  'Ya casi...',
+];
+
+/** Cada cuánto avanza el índice de MENSAJES_EXTRACCION (AGENTS.md: "~3 segundos") */
+const INTERVALO_MENSAJE_EXTRACCION_MS = 3000;
 
 // Tope observado en el spike: entre ~9 y ~40s según qué modelo gratuito eligió
 // el auto-router de OpenRouter. Un poco por encima del peor caso, para que la
@@ -121,8 +138,11 @@ const extraerDatosDeRecibo = async (archivo) => {
  * plano a /api/extract-receipt para pre-llenar Monto/Título si el modelo
  * logra leerlos — nunca bloquea el formulario ni sobrescribe lo que el
  * usuario ya haya escrito a mano ("capturar ahora, corregir después",
- * AGENTS.md §1); si la extracción falla o tarda demasiado, se descarta en
- * silencio y el usuario sigue completando los campos manualmente.
+ * AGENTS.md §1). Mientras espera, un mensaje lúdico rota cada ~3s en vez del
+ * antiguo rótulo estático; si la extracción falla del todo (red/timeout, o
+ * ambos campos null) se lo comunica con un banner amistoso, no silencioso, y
+ * si solo se extrajo uno de los dos campos avisa cuál falta completar a mano
+ * (AGENTS.md → "Receipt extraction UX states").
  *
  * Guarda el gasto directamente con saveExpense() de /lib/store.js — este
  * componente es el único responsable de persistirlo; el padre solo necesita
@@ -170,6 +190,25 @@ export const AddExpensesForm = ({ trip, onGuardar = () => {}, onCancelar = () =>
   // ("capturar ahora, corregir después", AGENTS.md §1).
   const [extrayendo, setExtrayendo] = useState(false);
 
+  // Índice del mensaje lúdico actual dentro de MENSAJES_EXTRACCION, mientras
+  // "extrayendo" es true. Avanza cada ~3s vía setInterval (ver más abajo).
+  const [indiceMensajeExtraccion, setIndiceMensajeExtraccion] = useState(0);
+  const intervaloMensajeRef = useRef(null);
+
+  // Banner amistoso (no de error) tras resolverse la extracción: null cuando
+  // no hay nada que comunicar (éxito total, o todavía no se adjuntó foto).
+  // AGENTS.md → "Receipt extraction UX states": falla total, o éxito
+  // parcial (solo monto o solo comercio) — nunca para el caso "ambos".
+  const [avisoExtraccion, setAvisoExtraccion] = useState(null);
+
+  /** Detiene y limpia el intervalo del mensaje rotativo, si hay uno activo. */
+  const detenerRotacionDeMensajes = () => {
+    if (intervaloMensajeRef.current) {
+      clearInterval(intervaloMensajeRef.current);
+      intervaloMensajeRef.current = null;
+    }
+  };
+
   // Permite cancelar una extracción en curso si el usuario cambia o quita la
   // foto antes de que responda, para que un resultado viejo nunca llegue a
   // pisar lo que el usuario ya haya escrito para la foto nueva.
@@ -196,6 +235,10 @@ export const AddExpensesForm = ({ trip, onGuardar = () => {}, onCancelar = () =>
     const montoEnCop = convertirLocalACOP(montoNumerico, trip.pais);
     return `≈ ${formatearMoneda(montoEnCop)} COP`;
   }, [monto, trip?.pais]);
+
+  // Limpia el intervalo del mensaje rotativo si el formulario se desmonta
+  // mientras una extracción sigue en vuelo (evita setState tras desmontar).
+  useEffect(() => () => detenerRotacionDeMensajes(), []);
 
   const abrirSelectorDeFoto = () => {
     inputFotoRef.current?.click();
@@ -225,7 +268,18 @@ export const AddExpensesForm = ({ trip, onGuardar = () => {}, onCancelar = () =>
     extraccionEnCursoRef.current = tokenDeEstaExtraccion;
 
     console.log('manejarSeleccionDeFoto: foto adjuntada, iniciando extracción en segundo plano...');
+    setAvisoExtraccion(null); // limpia el banner de una extracción anterior, si quedaba alguno
     setExtrayendo(true);
+
+    // Rótulo lúdico rotativo (AGENTS.md → "Receipt extraction UX states"):
+    // arranca en el primer mensaje y avanza cada ~3s, dando la vuelta si la
+    // extracción tarda más que la lista completa.
+    detenerRotacionDeMensajes();
+    setIndiceMensajeExtraccion(0);
+    intervaloMensajeRef.current = setInterval(() => {
+      setIndiceMensajeExtraccion((indiceAnterior) => (indiceAnterior + 1) % MENSAJES_EXTRACCION.length);
+    }, INTERVALO_MENSAJE_EXTRACCION_MS);
+
     extraerDatosDeRecibo(primeraFoto)
       .then(({ monto: montoExtraido, comercio }) => {
         // Una foto más reciente (u otra cancelación) ya invalidó esta extracción
@@ -247,11 +301,30 @@ export const AddExpensesForm = ({ trip, onGuardar = () => {}, onCancelar = () =>
           setTitulo(comercio);
           console.log('manejarSeleccionDeFoto: Título pre-llenado con', comercio);
         }
+
+        // Banner amistoso según el resultado (AGENTS.md → "Receipt extraction
+        // UX states"): silencioso solo cuando se extrajeron ambos campos.
+        if (montoExtraido === null && comercio === null) {
+          setAvisoExtraccion(
+            'Se me rompieron los lentes 👓💔 No pude leer este recibo — completa los datos a mano.'
+          );
+        } else if (montoExtraido !== null && comercio === null) {
+          const montoFormateado = `$${montoExtraido.toLocaleString('en-US', { maximumFractionDigits: 0 })} ${moneda}`;
+          setAvisoExtraccion(`Leí que gastaste ${montoFormateado} — pero no vi en qué. Completa el nombre.`);
+        } else if (comercio !== null && montoExtraido === null) {
+          setAvisoExtraccion(`Leí que fue en ${comercio} — pero no vi cuánto. Ingresa el monto.`);
+        } else {
+          setAvisoExtraccion(null);
+        }
       })
       .finally(() => {
+        // Solo detiene EL intervalo si sigue siendo el de esta extracción: si
+        // ya se adjuntó una foto más nueva, ese intervalo es el vigente y no
+        // debe cortarse por la resolución tardía de esta.
         if (extraccionEnCursoRef.current === tokenDeEstaExtraccion) {
+          detenerRotacionDeMensajes();
           setExtrayendo(false);
-          console.log('manejarSeleccionDeFoto: extracción finalizada, "Analizando recibo..." ocultado');
+          console.log('manejarSeleccionDeFoto: extracción finalizada, mensaje rotativo ocultado');
         }
       });
   };
@@ -259,7 +332,9 @@ export const AddExpensesForm = ({ trip, onGuardar = () => {}, onCancelar = () =>
   /** Quita la foto adjunta (y libera su URL de miniatura); cancela cualquier extracción en curso */
   const eliminarFoto = () => {
     extraccionEnCursoRef.current += 1; // invalida cualquier extracción pendiente
+    detenerRotacionDeMensajes();
     setExtrayendo(false);
+    setAvisoExtraccion(null);
 
     setFotoUrl((anterior) => {
       if (anterior) URL.revokeObjectURL(anterior);
@@ -290,12 +365,14 @@ export const AddExpensesForm = ({ trip, onGuardar = () => {}, onCancelar = () =>
   /** Reinicia todos los campos a sus valores por defecto */
   const reiniciarFormulario = () => {
     extraccionEnCursoRef.current += 1; // invalida cualquier extracción pendiente
+    detenerRotacionDeMensajes();
     if (fotoUrl) URL.revokeObjectURL(fotoUrl);
     setTitulo('');
     setMonto('');
     setFecha(obtenerFechaDeHoy());
     setFotoUrl(null);
     setExtrayendo(false);
+    setAvisoExtraccion(null);
     setErrores({ titulo: '', monto: '', fecha: '' });
     tituloTocadoRef.current = false;
     montoTocadoRef.current = false;
@@ -411,7 +488,7 @@ export const AddExpensesForm = ({ trip, onGuardar = () => {}, onCancelar = () =>
                       />
                     </svg>
                     <span className="text-label font-body text-bg-surface leading-tight">
-                      Analizando recibo…
+                      {MENSAJES_EXTRACCION[indiceMensajeExtraccion]}
                     </span>
                   </div>
                 )}
@@ -442,6 +519,7 @@ export const AddExpensesForm = ({ trip, onGuardar = () => {}, onCancelar = () =>
                 onChange={(e) => {
                   tituloTocadoRef.current = true;
                   setTitulo(e.target.value);
+                  setAvisoExtraccion(null);
                 }}
               />
               {errores.titulo && <span className="text-label text-alert-max px-1">{errores.titulo}</span>}
@@ -458,6 +536,7 @@ export const AddExpensesForm = ({ trip, onGuardar = () => {}, onCancelar = () =>
                   onChange={(e) => {
                     montoTocadoRef.current = true;
                     setMonto(e.target.value);
+                    setAvisoExtraccion(null);
                   }}
                 />
                 {errores.monto ? (
@@ -482,6 +561,27 @@ export const AddExpensesForm = ({ trip, onGuardar = () => {}, onCancelar = () =>
             </div>
           </div>
         </div>
+
+        {/* Banner amistoso post-extracción (falla total o éxito parcial): tono
+            neutral/suave, nunca alert-max — no es un error, es informativo
+            (AGENTS.md → "Receipt extraction UX states"). Se oculta solo al
+            escribir en Título/Monto, o manualmente con el botón "×". */}
+        {avisoExtraccion && (
+          <div
+            role="status"
+            className="flex items-start justify-between gap-3 rounded-md bg-bg-list-item px-4 py-3"
+          >
+            <p className="text-label font-body text-ink-muted">{avisoExtraccion}</p>
+            <button
+              type="button"
+              aria-label="Descartar aviso"
+              onClick={() => setAvisoExtraccion(null)}
+              className="shrink-0 text-ink-muted hover:text-ink-primary transition-colors leading-none"
+            >
+              ×
+            </button>
+          </div>
+        )}
 
         {/* Acciones del formulario */}
         <div className="flex flex-col gap-4 items-center pt-2">
