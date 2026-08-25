@@ -1,0 +1,77 @@
+<!-- TEMP: manual test page, delete before final submission -->
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>TEMP — Prueba manual /api/extract-receipt</title>
+  </head>
+  <body>
+    <h1>TEMP: Prueba manual de /api/extract-receipt</h1>
+    <p>
+      Página descartable, no enlazada desde la app real. Solo para probar el endpoint
+      con una foto real bajo <code>wrangler pages dev</code>.
+    </p>
+
+    <input id="input-foto" type="file" accept="image/*" capture="environment" />
+    <button id="btn-probar" type="button">Probar</button>
+
+    <p id="estado"></p>
+
+    <pre id="resultado"></pre>
+
+    <script>
+      const inputFoto = document.getElementById('input-foto');
+      const btnProbar = document.getElementById('btn-probar');
+      const estado = document.getElementById('estado');
+      const resultado = document.getElementById('resultado');
+
+      /** Lee un File y lo devuelve como data URL en base64 (mismo formato que espera la función). */
+      function leerComoDataURL(archivo) {
+        return new Promise((resolve, reject) => {
+          const lector = new FileReader();
+          lector.onload = () => resolve(lector.result);
+          lector.onerror = () => reject(lector.error);
+          lector.readAsDataURL(archivo);
+        });
+      }
+
+      btnProbar.addEventListener('click', async () => {
+        const archivo = inputFoto.files[0];
+        resultado.textContent = '';
+
+        if (!archivo) {
+          estado.textContent = 'Selecciona una foto primero.';
+          return;
+        }
+
+        try {
+          estado.textContent = 'Leyendo la foto...';
+          const dataUrl = await leerComoDataURL(archivo);
+
+          // La latencia observada en el spike fue de 9 a 39 segundos (auto-router
+          // de modelos gratuitos): dejarlo explícito para que no parezca colgado.
+          estado.textContent = 'Procesando con el modelo... esto puede tardar entre 9 y 40 segundos, espera.';
+          btnProbar.disabled = true;
+
+          const inicio = Date.now();
+          const respuesta = await fetch('/api/extract-receipt', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ image: dataUrl }),
+          });
+          const duracionSegundos = ((Date.now() - inicio) / 1000).toFixed(1);
+
+          const cuerpo = await respuesta.json();
+          estado.textContent = `Listo (status ${respuesta.status}, ${duracionSegundos}s).`;
+          resultado.textContent = JSON.stringify(cuerpo, null, 2);
+        } catch (error) {
+          estado.textContent = 'Error al llamar al endpoint.';
+          resultado.textContent = String(error);
+        } finally {
+          btnProbar.disabled = false;
+        }
+      });
+    </script>
+  </body>
+</html>

@@ -12,6 +12,9 @@ dist
 dist-ssr
 *.local
 
+# Cloudflare Wrangler local dev state
+.wrangler
+
 # Environment variables
 .env
 
