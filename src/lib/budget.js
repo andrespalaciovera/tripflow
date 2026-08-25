@@ -166,6 +166,30 @@ export const calcularEstadoViaje = (trip) => {
 export const obtenerPresupuestoSugerido = (motivo, diasTotales) =>
   diasTotales * (motivo === 'negocios' ? 250000 : 150000);
 
+/**
+ * Moneda en la que normalmente se factura cada uno de los 7 países del modelo
+ * de datos real (AGENTS.md §7). Usada para derivar Trip.moneda a partir del
+ * país elegido al crear un viaje.
+ */
+const MONEDA_POR_PAIS = {
+  'Estados Unidos': 'USD',
+  México: 'MXN',
+  Colombia: 'COP',
+  España: 'EUR',
+  Francia: 'EUR',
+  Alemania: 'EUR',
+  Italia: 'EUR',
+};
+
+/**
+ * Deriva la moneda de un viaje a partir del país seleccionado (AGENTS.md §3:
+ * Trip.moneda "derived from country"). Si el país no está en la tabla, se
+ * asume COP.
+ * @param {string} pais - Nombre exacto del país (ver MONEDA_POR_PAIS)
+ * @returns {string} Código de moneda (ej. "USD", "EUR", "COP")
+ */
+export const derivarMonedaDesdePais = (pais) => MONEDA_POR_PAIS[pais] ?? 'COP';
+
 // --- Conversión de moneda (MVP, tasas fijas) --------------------------------
 
 /**

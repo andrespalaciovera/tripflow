@@ -1,36 +1,14 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import Button from './Button';
 import Input from './Input';
+import { saveTrip } from '../lib/store';
+import { calcularDiasTotales, obtenerPresupuestoSugerido, derivarMonedaDesdePais, convertirAMonedaLocal } from '../lib/budget';
 
 /**
- * Lista fija de destinos disponibles para el MVP, cada uno asociado
- * a la moneda en la que normalmente se factura ese país.
+ * Lista fija de los 7 países disponibles para el MVP (AGENTS.md §7), usando
+ * exactamente los mismos nombres que la tabla de tasas de budget.js.
  */
-const DESTINOS = [
-  { pais: 'USA', moneda: 'USD' },
-  { pais: 'España', moneda: 'EUR' },
-  { pais: 'Italia', moneda: 'EUR' },
-  { pais: 'Francia', moneda: 'EUR' },
-  { pais: 'Alemania', moneda: 'EUR' },
-  { pais: 'México', moneda: 'MXN' },
-  { pais: 'Colombia', moneda: 'COP' },
-];
-
-/**
- * Tasas de cambio fijas para el MVP: cuántos COP equivalen a 1 unidad
- * de cada moneda extranjera. Colombia no necesita tasa (ya está en COP).
- */
-const TASAS_DE_CAMBIO_A_COP = {
-  USD: 4000,
-  EUR: 4300,
-  MXN: 230,
-};
-
-/** Presupuestos sugeridos según el motivo del viaje (en COP) */
-const PRESUPUESTO_SUGERIDO = {
-  vacaciones: 7000000,
-  negocios: 4000000,
-};
+const DESTINOS = ['Estados Unidos', 'México', 'Colombia', 'España', 'Francia', 'Alemania', 'Italia'];
 
 /**
  * Icono de flecha para el <select> de destino (reemplaza la flecha nativa).
@@ -91,10 +69,15 @@ const IconoCerrar = () => (
  * anclado a la derecha, con selección de destino, motivo del viaje (toggle
  * segmentado), fechas y presupuesto con conversión automática de moneda.
  *
+ * Al confirmar, construye el objeto Trip exacto del modelo de datos
+ * (AGENTS.md §3) y lo persiste con saveTrip() de /lib/store.js — este
+ * componente es el único responsable de guardar el nuevo viaje; el padre
+ * solo necesita reaccionar a onSave para refrescar su lista.
+ *
  * @param {Object} props
  * @param {boolean} props.isOpen - Controla si el drawer está visible
- * @param {Function} props.onClose - Se dispara al cerrar el drawer (X o Cancelar)
- * @param {Function} props.onSave - Se dispara con los datos del nuevo viaje al crear
+ * @param {Function} props.onClose - Se dispara al cerrar el drawer (X, overlay o Cancelar)
+ * @param {Function} [props.onSave] - Se dispara con el registro de Trip ya guardado (incluye id)
  */
 export const NewTripDrawer = ({ isOpen, onClose, onSave }) => {
   // Destino elegido (nombre del país); vacío = "Selecciona un destino"
@@ -107,42 +90,60 @@ export const NewTripDrawer = ({ isOpen, onClose, onSave }) => {
   const [fechaInicio, setFechaInicio] = useState('');
   const [fechaFin, setFechaFin] = useState('');
 
-  // Presupuesto en COP; arranca en el valor sugerido para "vacaciones"
-  const [presupuesto, setPresupuesto] = useState(PRESUPUESTO_SUGERIDO.vacaciones);
+  // Presupuesto en COP, como texto (tal como lo escribe el usuario en el input)
+  const [presupuesto, setPresupuesto] = useState('');
 
-  // Destino completo (país + moneda) según lo seleccionado
-  const destinoSeleccionado = useMemo(
-    () => DESTINOS.find((d) => d.pais === destino),
-    [destino]
-  );
+  // true en cuanto el usuario edita el campo Presupuesto a mano: a partir de
+  // ahí el auto-relleno sugerido deja de sobrescribirlo (regla de negocio: el
+  // campo sigue siendo editable, la sugerencia solo pre-llena un valor inicial).
+  const [presupuestoTocado, setPresupuestoTocado] = useState(false);
+
+  // Mensajes de validación por campo; vacío = sin error
+  const [errores, setErrores] = useState({ pais: '', fechas: '', presupuesto: '' });
 
   /**
-   * Cambia el motivo del viaje y autocompleta el presupuesto sugerido
-   * correspondiente (Regla de negocio 1).
+   * Auto-relleno del presupuesto sugerido (AGENTS.md §3): en cuanto motivo y
+   * ambas fechas están definidos, sugiere presupuesto_diario × diasTotales —
+   * pero nunca si el usuario ya escribió un valor manualmente.
    */
-  const manejarCambioDeMotivo = (nuevoMotivo) => {
-    setMotivo(nuevoMotivo);
-    setPresupuesto(PRESUPUESTO_SUGERIDO[nuevoMotivo]);
+  useEffect(() => {
+    if (presupuestoTocado) return;
+    if (!fechaInicio || !fechaFin) return;
+
+    const diasTotales = calcularDiasTotales(fechaInicio, fechaFin);
+    setPresupuesto(String(obtenerPresupuestoSugerido(motivo, diasTotales)));
+  }, [motivo, fechaInicio, fechaFin, presupuestoTocado]);
+
+  /** Marca el presupuesto como editado a mano y actualiza su valor */
+  const manejarCambioDePresupuesto = (valor) => {
+    setPresupuestoTocado(true);
+    setPresupuesto(valor);
   };
 
   /**
-   * Calcula el presupuesto convertido a la moneda del destino elegido
-   * (Regla de negocio 2). Devuelve null si no aplica (sin destino,
-   * destino en Colombia, o presupuesto vacío/ inválido).
+   * Vista previa de conversión (AGENTS.md §7): muestra a cuánto equivale el
+   * presupuesto (siempre en COP) en la moneda local del destino elegido.
+   * Se oculta si no hay destino, el destino es Colombia (misma moneda) o el
+   * presupuesto todavía no es un número válido. Solo es una vista — el valor
+   * almacenado (presupuesto_total) siempre queda en COP.
    */
-  const presupuestoConvertido = useMemo(() => {
-    if (!destinoSeleccionado || destinoSeleccionado.moneda === 'COP') return null;
+  const presupuestoConvertidoPreview = useMemo(() => {
+    if (!destino || destino === 'Colombia') return null;
 
     const montoEnCop = Number(presupuesto);
-    if (!montoEnCop || Number.isNaN(montoEnCop)) return null;
+    if (!montoEnCop || Number.isNaN(montoEnCop) || montoEnCop <= 0) return null;
 
-    const tasa = TASAS_DE_CAMBIO_A_COP[destinoSeleccionado.moneda];
+    // convertirAMonedaLocal(monto, país) devuelve cuántos COP equivalen a
+    // "monto" unidades de la moneda local del país. Pidiendo la tasa para 1
+    // unidad (convertirAMonedaLocal(1, país)) obtenemos ese factor y lo usamos
+    // para la conversión inversa (COP → moneda local) sin duplicar la tabla
+    // de tasas fuera de budget.js.
+    const tasa = convertirAMonedaLocal(1, destino);
     const montoConvertido = montoEnCop / tasa;
+    const moneda = derivarMonedaDesdePais(destino);
 
-    return `≈ ${montoConvertido.toLocaleString('en-US', {
-      maximumFractionDigits: 0,
-    })} ${destinoSeleccionado.moneda}`;
-  }, [destinoSeleccionado, presupuesto]);
+    return `≈ $${montoConvertido.toLocaleString('en-US', { maximumFractionDigits: 0 })} ${moneda}`;
+  }, [destino, presupuesto]);
 
   /** Reinicia el formulario a sus valores por defecto */
   const reiniciarFormulario = () => {
@@ -150,20 +151,65 @@ export const NewTripDrawer = ({ isOpen, onClose, onSave }) => {
     setMotivo('vacaciones');
     setFechaInicio('');
     setFechaFin('');
-    setPresupuesto(PRESUPUESTO_SUGERIDO.vacaciones);
+    setPresupuesto('');
+    setPresupuestoTocado(false);
+    setErrores({ pais: '', fechas: '', presupuesto: '' });
   };
 
-  /** Envía los datos del nuevo viaje al componente padre */
+  /**
+   * Valida los campos del formulario (país seleccionado, ambas fechas con fin
+   * no anterior a inicio, presupuesto positivo). Devuelve el mapa de errores;
+   * vacío en todos los campos significa que el formulario es válido.
+   */
+  const validarFormulario = () => {
+    const nuevosErrores = { pais: '', fechas: '', presupuesto: '' };
+
+    if (!destino) {
+      nuevosErrores.pais = 'Selecciona un destino.';
+    }
+
+    if (!fechaInicio || !fechaFin) {
+      nuevosErrores.fechas = 'Selecciona la fecha de inicio y de fin.';
+    } else if (new Date(fechaFin) < new Date(fechaInicio)) {
+      nuevosErrores.fechas = 'La fecha de fin no puede ser anterior a la de inicio.';
+    }
+
+    const presupuestoNumerico = Number(presupuesto);
+    if (!presupuesto || Number.isNaN(presupuestoNumerico) || presupuestoNumerico <= 0) {
+      nuevosErrores.presupuesto = 'Ingresa un presupuesto válido, mayor a 0.';
+    }
+
+    return nuevosErrores;
+  };
+
+  /**
+   * Valida, construye el Trip (AGENTS.md §3) y lo persiste con saveTrip().
+   * Si hay errores, el drawer permanece abierto y se muestran junto a cada campo.
+   */
   const manejarCrearViaje = () => {
-    onSave({
-      destino,
-      moneda: destinoSeleccionado?.moneda ?? 'COP',
+    const nuevosErrores = validarFormulario();
+    const hayErrores = Object.values(nuevosErrores).some(Boolean);
+
+    if (hayErrores) {
+      setErrores(nuevosErrores);
+      return;
+    }
+
+    const trip = {
+      nombre: destino, // AGENTS.md §3: el nombre del viaje es el propio país
+      pais: destino,
+      moneda: derivarMonedaDesdePais(destino),
       motivo,
-      fechaInicio,
-      fechaFin,
-      presupuesto: Number(presupuesto) || 0,
-    });
+      fecha_inicio: fechaInicio,
+      fecha_fin: fechaFin,
+      presupuesto_total: Number(presupuesto),
+      finalizado_manualmente: false,
+    };
+
+    const registroGuardado = saveTrip(trip);
+
     reiniciarFormulario();
+    onSave?.(registroGuardado);
   };
 
   /** Cierra el drawer sin guardar cambios */
@@ -209,9 +255,9 @@ export const NewTripDrawer = ({ isOpen, onClose, onSave }) => {
                 <option value="" disabled>
                   Selecciona un destino
                 </option>
-                {DESTINOS.map((d) => (
-                  <option key={d.pais} value={d.pais}>
-                    {d.pais}
+                {DESTINOS.map((pais) => (
+                  <option key={pais} value={pais}>
+                    {pais}
                   </option>
                 ))}
               </select>
@@ -219,6 +265,7 @@ export const NewTripDrawer = ({ isOpen, onClose, onSave }) => {
                 <IconoFlecha />
               </span>
             </div>
+            {errores.pais && <span className="text-label text-alert-max px-1">{errores.pais}</span>}
           </div>
 
           {/* Campo 2: Motivo de viaje (toggle segmentado) */}
@@ -227,7 +274,7 @@ export const NewTripDrawer = ({ isOpen, onClose, onSave }) => {
             <div className="flex items-center bg-stroke-form rounded-full p-1 w-full">
               <button
                 type="button"
-                onClick={() => manejarCambioDeMotivo('vacaciones')}
+                onClick={() => setMotivo('vacaciones')}
                 className={`flex-1 py-3 rounded-full text-body text-center transition-colors ${
                   motivo === 'vacaciones' ? 'bg-ink-primary text-bg-surface' : 'text-ink-muted'
                 }`}
@@ -236,7 +283,7 @@ export const NewTripDrawer = ({ isOpen, onClose, onSave }) => {
               </button>
               <button
                 type="button"
-                onClick={() => manejarCambioDeMotivo('negocios')}
+                onClick={() => setMotivo('negocios')}
                 className={`flex-1 py-3 rounded-full text-body text-center transition-colors ${
                   motivo === 'negocios' ? 'bg-ink-primary text-bg-surface' : 'text-ink-muted'
                 }`}
@@ -263,6 +310,7 @@ export const NewTripDrawer = ({ isOpen, onClose, onSave }) => {
                 onChange={(e) => setFechaFin(e.target.value)}
               />
             </div>
+            {errores.fechas && <span className="text-label text-alert-max px-1">{errores.fechas}</span>}
           </div>
 
           {/* Campo 4: Presupuesto */}
@@ -273,11 +321,15 @@ export const NewTripDrawer = ({ isOpen, onClose, onSave }) => {
               prefix="COP"
               placeholder="Ej. 5.000.000"
               value={presupuesto}
-              onChange={(e) => setPresupuesto(e.target.value)}
+              onChange={(e) => manejarCambioDePresupuesto(e.target.value)}
             />
-            {/* Conversión dinámica: se oculta si el destino es Colombia o no hay destino */}
-            {presupuestoConvertido && (
-              <span className="text-label text-ink-muted px-1">{presupuestoConvertido}</span>
+            {errores.presupuesto ? (
+              <span className="text-label text-alert-max px-1">{errores.presupuesto}</span>
+            ) : (
+              /* Conversión dinámica: se oculta si el destino es Colombia o no hay destino */
+              presupuestoConvertidoPreview && (
+                <span className="text-label text-ink-muted px-1">{presupuestoConvertidoPreview}</span>
+              )
             )}
           </div>
         </div>

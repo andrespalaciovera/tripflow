@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import TopNavbar from '../components/TopNavbar';
 import Button from '../components/Button';
 import TripActiveCard from '../components/TripActiveCard';
@@ -7,6 +7,8 @@ import TripCompletedCard from '../components/TripCompletedCard';
 import ExpenseRow from '../components/ExpenseRow';
 import AddExpensesForm from '../components/AddExpensesForm';
 import NewTripDrawer from '../components/NewTripDrawer';
+import { getTrips, saveTrip, getExpenses, saveExpense } from '../lib/store';
+import { calcularEstadoViaje } from '../lib/budget';
 
 /**
  * Formatea un número como moneda COP, sin decimales, seguido del código de moneda.
@@ -34,12 +36,27 @@ const formatearTiempoRelativo = (creadoEnIso) => {
   return `hace ${Math.round(horasTranscurridas / 24)}d`;
 };
 
-// --- Datos simulados (mock) --------------------------------------------------
-// Paso de composición únicamente: aún no se conecta con /lib/store.js ni /lib/budget.js.
-// Los objetos siguen exactamente el modelo Trip/Expense definido en AGENTS.md, sección 3.
+/**
+ * Nivel de riesgo visual por gasto (color de acento de ExpenseRow, alert-min/medium/max).
+ * No es parte del modelo Expense — es una etiqueta puramente presentacional. Los gastos
+ * semilla de más abajo tienen un valor fijo asignado; cualquier gasto real (guardado más
+ * adelante desde AddExpensesForm) usa 'low' por defecto hasta que exista una regla propia.
+ */
+const NIVEL_RIESGO_POR_GASTO = {
+  'exp-001': 'high',
+  'exp-002': 'low',
+  'exp-003': 'low',
+  'exp-004': 'medium',
+};
 
-/** Viaje "Activo" (Trip, AGENTS.md §3): inició ayer, dura 6 días → "Día 2 de 6" */
-const viajeActivoMock = {
+// --- Datos semilla (solo si el store está vacío) ----------------------------
+// Siguen exactamente el modelo Trip/Expense de AGENTS.md §3. Se guardan una única
+// vez en /lib/store.js la primera vez que se abre el dashboard, para que la app
+// no arranque totalmente vacía — a partir de ahí, "Tus viajes" y "Gastos recientes"
+// se leen siempre del store, igual que cualquier viaje creado desde NewTripDrawer.
+
+/** Viaje "Activo" semilla: inició ayer, dura 6 días → "Día 2 de 6" */
+const viajeActivoSemilla = {
   id: 'trip-001',
   nombre: 'España',
   pais: 'España',
@@ -51,8 +68,8 @@ const viajeActivoMock = {
   finalizado_manualmente: false,
 };
 
-/** Viaje "Próximo" (Trip, AGENTS.md §3): comienza en 29 días */
-const viajeProximoMock = {
+/** Viaje "Próximo" semilla: comienza en 29 días */
+const viajeProximoSemilla = {
   id: 'trip-002',
   nombre: 'México',
   pais: 'México',
@@ -64,8 +81,8 @@ const viajeProximoMock = {
   finalizado_manualmente: false,
 };
 
-/** Viaje "Finalizado" (Trip, AGENTS.md §3): terminó manualmente, por encima del presupuesto */
-const viajeFinalizadoMock = {
+/** Viaje "Finalizado" semilla: terminó manualmente, por encima del presupuesto */
+const viajeFinalizadoSemilla = {
   id: 'trip-003',
   nombre: 'Francia',
   pais: 'Francia',
@@ -76,16 +93,12 @@ const viajeFinalizadoMock = {
   presupuesto_total: 5000000,
   finalizado_manualmente: true,
 };
-const totalGastadoFinalizadoMock = 5200000; // por encima del presupuesto, para variar el resultado
 
-/**
- * Gastos recientes (Expense, AGENTS.md §3) del viaje "Activo".
- * Mismas descripciones y montos de ejemplo usados en el frame de Figma.
- */
-const gastosRecientesMock = [
+/** Gastos semilla del viaje "Activo" (mismos ejemplos usados en el frame de Figma) */
+const gastosActivoSemilla = [
   {
     id: 'exp-001',
-    trip_id: viajeActivoMock.id,
+    trip_id: viajeActivoSemilla.id,
     titulo: 'Compra en boutique',
     monto: 850000,
     fecha: new Date().toISOString(),
@@ -94,7 +107,7 @@ const gastosRecientesMock = [
   },
   {
     id: 'exp-002',
-    trip_id: viajeActivoMock.id,
+    trip_id: viajeActivoSemilla.id,
     titulo: 'Almuerzo',
     monto: 80000,
     fecha: new Date().toISOString(),
@@ -103,7 +116,7 @@ const gastosRecientesMock = [
   },
   {
     id: 'exp-003',
-    trip_id: viajeActivoMock.id,
+    trip_id: viajeActivoSemilla.id,
     titulo: 'Taxi desde el aeropuerto',
     monto: 96000,
     fecha: new Date().toISOString(),
@@ -112,7 +125,7 @@ const gastosRecientesMock = [
   },
   {
     id: 'exp-004',
-    trip_id: viajeActivoMock.id,
+    trip_id: viajeActivoSemilla.id,
     titulo: 'Depósito de hotel',
     monto: 493000,
     fecha: new Date().toISOString(),
@@ -121,28 +134,39 @@ const gastosRecientesMock = [
   },
 ];
 
-/**
- * Nivel de riesgo visual por gasto (color de acento de ExpenseRow). No es parte del
- * modelo Expense — es una etiqueta puramente presentacional para este mock, igual que
- * el estado del viaje es siempre derivado y nunca un campo propio.
- */
-const NIVEL_RIESGO_POR_GASTO = {
-  'exp-001': 'high',
-  'exp-002': 'low',
-  'exp-003': 'low',
-  'exp-004': 'medium',
-};
-
-// Total gastado del viaje activo: suma de sus gastos recientes (≈23% del presupuesto)
-const totalGastadoActivoMock = gastosRecientesMock.reduce((suma, gasto) => suma + gasto.monto, 0);
+/** Gastos semilla del viaje "Finalizado" (suman 5.200.000: por encima del presupuesto) */
+const gastosFinalizadoSemilla = [
+  {
+    id: 'exp-005',
+    trip_id: viajeFinalizadoSemilla.id,
+    titulo: 'Hospedaje',
+    monto: 3200000,
+    fecha: viajeFinalizadoSemilla.fecha_inicio,
+    origen: 'manual',
+    creado_en: viajeFinalizadoSemilla.fecha_inicio,
+  },
+  {
+    id: 'exp-006',
+    trip_id: viajeFinalizadoSemilla.id,
+    titulo: 'Vuelos y traslados',
+    monto: 2000000,
+    fecha: viajeFinalizadoSemilla.fecha_inicio,
+    origen: 'manual',
+    creado_en: viajeFinalizadoSemilla.fecha_inicio,
+  },
+];
 
 /**
  * Dashboard — página principal de Tripflow (AGENTS.md §6: sitemap de 2 niveles).
  * Compone los organismos ya construidos (TopNavbar, TripActiveCard, TripComingCard,
- * TripCompletedCard, ExpenseRow, AddExpensesForm) sobre datos simulados. Paso de
- * ensamblaje de layout únicamente: sin conexión a /lib/store.js todavía.
+ * TripCompletedCard, ExpenseRow, AddExpensesForm, NewTripDrawer) sobre datos reales
+ * leídos de /lib/store.js. El estado de cada viaje (Activo/Próximo/Finalizado) siempre
+ * se deriva con calcularEstadoViaje() de /lib/budget.js — nunca es un campo propio.
  */
 export const Dashboard = () => {
+  // Lista de viajes leída del store; única fuente de verdad para "Tus viajes"
+  const [viajes, setViajes] = useState([]);
+
   // Controla la visibilidad del panel "Agregar gastos": oculto por defecto,
   // se revela al presionar el botón (a diferencia del frame de Figma, que lo
   // muestra expandido solo como referencia de diseño).
@@ -150,6 +174,24 @@ export const Dashboard = () => {
 
   // Controla la visibilidad del drawer "Nuevo viaje": mismo patrón, oculto por defecto
   const [isNewTripDrawerOpen, setIsNewTripDrawerOpen] = useState(false);
+
+  /** Vuelve a leer la lista de viajes desde el store (fuente de verdad) */
+  const recargarViajes = () => setViajes(getTrips());
+
+  // Al montar: si el store está vacío (primera visita), lo sembramos con datos
+  // de ejemplo; luego, en cualquier caso, leemos la lista real desde el store.
+  useEffect(() => {
+    if (getTrips().length === 0) {
+      [viajeActivoSemilla, viajeProximoSemilla, viajeFinalizadoSemilla].forEach(saveTrip);
+      [...gastosActivoSemilla, ...gastosFinalizadoSemilla].forEach(saveExpense);
+    }
+    recargarViajes();
+  }, []);
+
+  // El viaje "Activo" (AGENTS.md §3: solo puede haber uno) determina qué
+  // gastos recientes se muestran — esa sección nunca es un feed cruzado.
+  const viajeActivo = viajes.find((viaje) => calcularEstadoViaje(viaje) === 'activo');
+  const gastosRecientes = viajeActivo ? getExpenses(viajeActivo.id) : [];
 
   return (
     <div className="min-h-screen w-full bg-bg-body font-body text-ink-primary flex flex-col">
@@ -160,7 +202,6 @@ export const Dashboard = () => {
         {/* Encabezado: saludo + acción de nuevo viaje */}
         <div className="flex flex-wrap justify-between items-center gap-4 mb-8">
           <h1 className="text-h1 font-display text-ink-primary">Buenos días ☀️</h1>
-          {/* TODO: conectar onSave a /lib/store.js en un paso posterior */}
           <Button variant="primary" onClick={() => setIsNewTripDrawerOpen(true)}>
             + Nuevo viaje
           </Button>
@@ -168,41 +209,63 @@ export const Dashboard = () => {
 
         {/* Layout de dos columnas: viajes a la izquierda, gastos a la derecha */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
-          {/* Columna izquierda: "Tus viajes" — un card por viaje (Activo/Próximo/Finalizado) */}
+          {/* Columna izquierda: "Tus viajes" — un card por viaje, según su estado derivado */}
           <section className="flex flex-col gap-6">
             <h2 className="text-h3 font-display text-ink-primary">Tus viajes</h2>
 
-            <TripActiveCard
-              trip={{
-                destino: viajeActivoMock.nombre,
-                motivo: viajeActivoMock.motivo,
-                presupuestoTotal: viajeActivoMock.presupuesto_total,
-                fechaInicio: viajeActivoMock.fecha_inicio,
-                fechaFin: viajeActivoMock.fecha_fin,
-              }}
-              totalGastado={totalGastadoActivoMock}
-              onFinalizar={() => console.log('Viaje finalizado (pendiente de conectar a store.js)')}
-              onCalcularPago={() => console.log('Calcula si puedes pagarlo')}
-            />
+            {viajes.map((viaje) => {
+              const estado = calcularEstadoViaje(viaje);
 
-            <TripComingCard
-              trip={{
-                id: viajeProximoMock.id,
-                destino: viajeProximoMock.nombre,
-                motivo: viajeProximoMock.motivo,
-                presupuesto: viajeProximoMock.presupuesto_total,
-                fechaInicio: viajeProximoMock.fecha_inicio,
-              }}
-              onDelete={(id) => console.log('Eliminar viaje (pendiente de conectar a store.js):', id)}
-            />
+              if (estado === 'activo') {
+                const totalGastadoViaje = getExpenses(viaje.id).reduce((suma, g) => suma + g.monto, 0);
+                return (
+                  <TripActiveCard
+                    key={viaje.id}
+                    trip={{
+                      destino: viaje.nombre,
+                      motivo: viaje.motivo,
+                      presupuestoTotal: viaje.presupuesto_total,
+                      fechaInicio: viaje.fecha_inicio,
+                      fechaFin: viaje.fecha_fin,
+                    }}
+                    totalGastado={totalGastadoViaje}
+                    // TODO: persistir en store.js (finalizado_manualmente: true) en un paso posterior
+                    onFinalizar={() => console.log('Viaje finalizado (pendiente de conectar a store.js):', viaje.id)}
+                    onCalcularPago={() => console.log('Calcula si puedes pagarlo')}
+                  />
+                );
+              }
 
-            <TripCompletedCard
-              trip={{
-                destino: viajeFinalizadoMock.nombre,
-                presupuestoTotal: viajeFinalizadoMock.presupuesto_total,
-              }}
-              totalGastado={totalGastadoFinalizadoMock}
-            />
+              if (estado === 'proximo') {
+                return (
+                  <TripComingCard
+                    key={viaje.id}
+                    trip={{
+                      id: viaje.id,
+                      destino: viaje.nombre,
+                      motivo: viaje.motivo,
+                      presupuesto: viaje.presupuesto_total,
+                      fechaInicio: viaje.fecha_inicio,
+                    }}
+                    // TODO: persistir el borrado en store.js (deleteTrip) en un paso posterior
+                    onDelete={(id) => console.log('Eliminar viaje (pendiente de conectar a store.js):', id)}
+                  />
+                );
+              }
+
+              // estado === 'finalizado'
+              const totalGastadoViaje = getExpenses(viaje.id).reduce((suma, g) => suma + g.monto, 0);
+              return (
+                <TripCompletedCard
+                  key={viaje.id}
+                  trip={{
+                    destino: viaje.nombre,
+                    presupuestoTotal: viaje.presupuesto_total,
+                  }}
+                  totalGastado={totalGastadoViaje}
+                />
+              );
+            })}
           </section>
 
           {/* Columna derecha: "Gastos recientes" del viaje Activo + panel para agregar */}
@@ -221,6 +284,7 @@ export const Dashboard = () => {
             {mostrarFormularioGastos && (
               <AddExpensesForm
                 onGuardar={(gastos) => {
+                  // TODO: persistir con saveExpense() en un paso posterior
                   console.log('Gastos a guardar (pendiente de conectar a store.js):', gastos);
                   setMostrarFormularioGastos(false);
                 }}
@@ -230,13 +294,13 @@ export const Dashboard = () => {
 
             {/* Lista de gastos recientes: solo del viaje Activo (AGENTS.md §3) */}
             <div className="flex flex-col gap-3">
-              {gastosRecientesMock.map((gasto) => (
+              {gastosRecientes.map((gasto) => (
                 <ExpenseRow
                   key={gasto.id}
                   description={gasto.titulo}
                   amount={formatearMoneda(gasto.monto)}
                   relativeTime={formatearTiempoRelativo(gasto.creado_en)}
-                  riskLevel={NIVEL_RIESGO_POR_GASTO[gasto.id]}
+                  riskLevel={NIVEL_RIESGO_POR_GASTO[gasto.id] || 'low'}
                 />
               ))}
             </div>
@@ -269,12 +333,13 @@ export const Dashboard = () => {
       </footer>
 
       {/* Drawer "Nuevo viaje": oculto por defecto, se superpone sobre el dashboard atenuado.
-          Sin wiring a store.js todavía: onSave solo registra el viaje y cierra el drawer. */}
+          NewTripDrawer ya guarda el viaje en store.js por su cuenta; onSave solo nos avisa
+          para refrescar la lista y cerrar el panel. */}
       <NewTripDrawer
         isOpen={isNewTripDrawerOpen}
         onClose={() => setIsNewTripDrawerOpen(false)}
-        onSave={(nuevoViaje) => {
-          console.log('Nuevo viaje a guardar (pendiente de conectar a store.js):', nuevoViaje);
+        onSave={() => {
+          recargarViajes();
           setIsNewTripDrawerOpen(false);
         }}
       />
