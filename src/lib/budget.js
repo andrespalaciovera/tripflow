@@ -8,15 +8,36 @@
 // --- Fechas y duración del viaje --------------------------------------------
 
 /**
+ * Convierte una fecha "YYYY-MM-DD" (como se guardan fecha_inicio/fecha_fin,
+ * AGENTS.md §3) en un Date a medianoche LOCAL.
+ *
+ * `new Date("YYYY-MM-DD")` es una trampa clásica: el formato "date-only" de
+ * ese constructor lo interpreta como medianoche UTC, no medianoche local. En
+ * cualquier huso horario con offset negativo (ej. Colombia, UTC-5) eso cae en
+ * las 7pm del día ANTERIOR en hora local — y un .setHours(0,0,0,0) posterior
+ * fija esa fecha ya corrida al día equivocado, mientras que `new Date()` para
+ * "hoy" sí se calcula en hora local sin ese desfase. Esa asimetría es la que
+ * hacía que calcularDiaActual contara un día de más. Construir el Date con
+ * los componentes numéricos (año, mes, día) evita el parseo de string por
+ * completo: ese constructor SIEMPRE usa hora local.
+ * @param {string} fechaStr - Fecha en formato "YYYY-MM-DD"
+ * @returns {Date} Medianoche local de esa fecha
+ */
+const parsearFechaLocal = (fechaStr) => {
+  const [year, month, day] = fechaStr.split('-').map(Number);
+  return new Date(year, month - 1, day);
+};
+
+/**
  * Calcula el número de días completos entre dos fechas (inclusivo).
  * Se normalizan ambas fechas a medianoche para evitar desfases por horas.
- * @param {string|Date} fechaInicioStr
- * @param {string|Date} fechaFinStr
+ * @param {string} fechaInicioStr - "YYYY-MM-DD"
+ * @param {string} fechaFinStr - "YYYY-MM-DD"
  * @returns {number} Total de días del viaje (mínimo 1)
  */
 export const calcularDiasTotales = (fechaInicioStr, fechaFinStr) => {
-  const inicio = new Date(fechaInicioStr);
-  const fin = new Date(fechaFinStr);
+  const inicio = parsearFechaLocal(fechaInicioStr);
+  const fin = parsearFechaLocal(fechaFinStr);
   inicio.setHours(0, 0, 0, 0);
   fin.setHours(0, 0, 0, 0);
 
@@ -30,13 +51,13 @@ export const calcularDiasTotales = (fechaInicioStr, fechaFinStr) => {
 /**
  * Calcula el día actual del viaje (día 1 = fecha de inicio).
  * Se acota entre 1 y diasTotales para que nunca se salga del rango del viaje.
- * @param {string|Date} fechaInicioStr
+ * @param {string} fechaInicioStr - "YYYY-MM-DD"
  * @param {number} diasTotales
  * @returns {number} Día actual del viaje
  */
 export const calcularDiaActual = (fechaInicioStr, diasTotales) => {
   const hoy = new Date();
-  const inicio = new Date(fechaInicioStr);
+  const inicio = parsearFechaLocal(fechaInicioStr);
   hoy.setHours(0, 0, 0, 0);
   inicio.setHours(0, 0, 0, 0);
 
@@ -50,12 +71,12 @@ export const calcularDiaActual = (fechaInicioStr, diasTotales) => {
 /**
  * Días que faltan para que comience un viaje "Próximo" (0 si ya debería haber
  * comenzado). Usada por la cuenta regresiva de TripComingCard.jsx.
- * @param {string|Date} fechaInicioStr
+ * @param {string} fechaInicioStr - "YYYY-MM-DD"
  * @returns {number} Días faltantes (mínimo 0)
  */
 export const calcularDiasFaltantes = (fechaInicioStr) => {
   const hoy = new Date();
-  const inicio = new Date(fechaInicioStr);
+  const inicio = parsearFechaLocal(fechaInicioStr);
   hoy.setHours(0, 0, 0, 0);
   inicio.setHours(0, 0, 0, 0);
 
@@ -173,8 +194,8 @@ export const calcularEstadoViaje = (trip) => {
   if (trip.finalizado_manualmente) return 'finalizado';
 
   const hoy = new Date();
-  const inicio = new Date(trip.fecha_inicio);
-  const fin = new Date(trip.fecha_fin);
+  const inicio = parsearFechaLocal(trip.fecha_inicio);
+  const fin = parsearFechaLocal(trip.fecha_fin);
   hoy.setHours(0, 0, 0, 0);
   inicio.setHours(0, 0, 0, 0);
   fin.setHours(0, 0, 0, 0);
@@ -337,9 +358,23 @@ export const formatearMontoSegunModoMoneda = (valorEnCop, pais, mostrarEnCop) =>
 // Ejemplo de España usado en el diseño original: presupuesto_total 6.500.000,
 // gasto acumulado 1.495.000 → "Día 2 de 6" y ≈23% gastado.
 
-const HOY_MS = 24 * 60 * 60 * 1000;
-const _fechaInicioEjemplo = new Date(Date.now() - 1 * HOY_MS).toISOString();
-const _fechaFinEjemplo = new Date(Date.now() + 4 * HOY_MS).toISOString();
+// Formatea un Date como "YYYY-MM-DD" usando componentes LOCALES (no
+// toISOString, que es UTC y podría correr la fecha un día cerca de
+// medianoche) — mismo formato que fecha_inicio/fecha_fin realmente guardan.
+const _formatearFechaLocal = (date) => {
+  const anio = date.getFullYear();
+  const mes = String(date.getMonth() + 1).padStart(2, '0');
+  const dia = String(date.getDate()).padStart(2, '0');
+  return `${anio}-${mes}-${dia}`;
+};
+
+const _hoyLocal = new Date();
+const _fechaInicioEjemplo = _formatearFechaLocal(
+  new Date(_hoyLocal.getFullYear(), _hoyLocal.getMonth(), _hoyLocal.getDate() - 1)
+);
+const _fechaFinEjemplo = _formatearFechaLocal(
+  new Date(_hoyLocal.getFullYear(), _hoyLocal.getMonth(), _hoyLocal.getDate() + 4)
+);
 
 const _diasTotalesEjemplo = calcularDiasTotales(_fechaInicioEjemplo, _fechaFinEjemplo);
 const _diaActualEjemplo = calcularDiaActual(_fechaInicioEjemplo, _diasTotalesEjemplo);
@@ -350,6 +385,19 @@ console.assert(_diaActualEjemplo === 2, `calcularDiaActual: se esperaba el día 
 console.assert(
   Math.round(_porcentajeGastadoEjemplo) === 23,
   `calcularPorcentajeGastado: se esperaba ≈23%, se obtuvo ${_porcentajeGastadoEjemplo}%`
+);
+
+// Regresión del bug de zona horaria: viaje de 2 días que empieza HOY debe
+// mostrar "Día 1 de 2" en el primer día, no "Día 2 de 2" (ver parsearFechaLocal).
+const _fechaInicioHoy = _formatearFechaLocal(_hoyLocal);
+const _fechaFinManana = _formatearFechaLocal(
+  new Date(_hoyLocal.getFullYear(), _hoyLocal.getMonth(), _hoyLocal.getDate() + 1)
+);
+const _diasTotalesViajeCorto = calcularDiasTotales(_fechaInicioHoy, _fechaFinManana);
+const _diaActualViajeCorto = calcularDiaActual(_fechaInicioHoy, _diasTotalesViajeCorto);
+console.assert(
+  _diaActualViajeCorto === 1,
+  `calcularDiaActual: viaje que empieza hoy debería estar en el día 1, se obtuvo ${_diaActualViajeCorto}`
 );
 
 // Dirección de conversión: 1 EUR = 4300 COP (tabla TASAS_CONVERSION_COP)

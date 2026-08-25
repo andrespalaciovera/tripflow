@@ -49,6 +49,66 @@ const IconoFoto = () => (
 /** Fecha de hoy en formato nativo de <input type="date"> (YYYY-MM-DD) */
 const obtenerFechaDeHoy = () => new Date().toISOString().slice(0, 10);
 
+// Tope observado en el spike: entre ~9 y ~40s según qué modelo gratuito eligió
+// el auto-router de OpenRouter. Un poco por encima del peor caso, para que la
+// extracción nunca deje al usuario esperando indefinidamente (ver punto 4 del task).
+const TIMEOUT_EXTRACCION_MS = 45000;
+
+/** Lee un File y lo devuelve como data URL en base64 (mismo método que test-receipt.html). */
+const leerComoDataURL = (archivo) =>
+  new Promise((resolve, reject) => {
+    const lector = new FileReader();
+    lector.onload = () => resolve(lector.result);
+    lector.onerror = () => reject(lector.error);
+    lector.readAsDataURL(archivo);
+  });
+
+/**
+ * Llama a /api/extract-receipt con la misma forma de solicitud que
+ * test-receipt.html ({ image: dataUrl }), con un timeout de cliente. Nunca
+ * lanza: cualquier falla (red, timeout, status no-200, JSON inválido) se
+ * resuelve como { monto: null, comercio: null } — la extracción es una
+ * conveniencia opcional, jamás debe bloquear ni ensuciar la UI con un error.
+ * @param {File} archivo
+ * @returns {Promise<{ monto: number|null, comercio: string|null }>}
+ */
+const extraerDatosDeRecibo = async (archivo) => {
+  const controlador = new AbortController();
+  const temporizador = setTimeout(() => controlador.abort(), TIMEOUT_EXTRACCION_MS);
+
+  try {
+    const dataUrl = await leerComoDataURL(archivo);
+
+    console.log('extraerDatosDeRecibo: llamando a POST /api/extract-receipt...');
+    const respuesta = await fetch('/api/extract-receipt', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ image: dataUrl }),
+      signal: controlador.signal,
+    });
+
+    if (!respuesta.ok) {
+      console.log('extraerDatosDeRecibo: respuesta no-OK, status', respuesta.status);
+      console.error('extraerDatosDeRecibo: /api/extract-receipt respondió', respuesta.status);
+      return { monto: null, comercio: null };
+    }
+
+    const cuerpo = await respuesta.json();
+    console.log('extraerDatosDeRecibo: respuesta recibida ->', cuerpo);
+    return {
+      monto: typeof cuerpo?.monto === 'number' ? cuerpo.monto : null,
+      comercio: typeof cuerpo?.comercio === 'string' ? cuerpo.comercio : null,
+    };
+  } catch (error) {
+    // Incluye AbortError (timeout) y fallas de red: mismo resultado silencioso.
+    console.log('extraerDatosDeRecibo: la solicitud falló (ver detalle abajo)');
+    console.error('extraerDatosDeRecibo: extracción falló, se sigue con entrada manual.', error);
+    return { monto: null, comercio: null };
+  } finally {
+    clearTimeout(temporizador);
+  }
+};
+
 /**
  * AddExpensesForm — Formulario "organismo" para agregar un gasto del viaje Activo.
  *
@@ -57,9 +117,12 @@ const obtenerFechaDeHoy = () => new Date().toISOString().slice(0, 10);
  * Un único bloque de gasto (foto + Nombre/Monto/Fecha) por envío — registrar
  * varios gastos desde varias fotos en un mismo envío está fuera de alcance
  * del MVP (AGENTS.md §8), así que este formulario nunca genera más de un
- * bloque: si se adjunta una foto, por ahora solo se guarda como referencia
- * visual y el usuario sigue completando Título/Monto/Fecha a mano (la
- * extracción por IA es un trabajo aparte, todavía no implementado).
+ * bloque. Al adjuntar una foto, además de la miniatura, se llama en segundo
+ * plano a /api/extract-receipt para pre-llenar Monto/Título si el modelo
+ * logra leerlos — nunca bloquea el formulario ni sobrescribe lo que el
+ * usuario ya haya escrito a mano ("capturar ahora, corregir después",
+ * AGENTS.md §1); si la extracción falla o tarda demasiado, se descarta en
+ * silencio y el usuario sigue completando los campos manualmente.
  *
  * Guarda el gasto directamente con saveExpense() de /lib/store.js — este
  * componente es el único responsable de persistirlo; el padre solo necesita
@@ -88,9 +151,29 @@ export const AddExpensesForm = ({ trip, onGuardar = () => {}, onCancelar = () =>
   // Fecha por defecto: hoy (AGENTS.md §7), editable
   const [fecha, setFecha] = useState(obtenerFechaDeHoy);
 
-  // Miniatura de la foto adjunta, si el usuario adjuntó una. Puramente visual
-  // en este paso: no se envía ni se procesa (ver nota de alcance arriba).
+  // true en cuanto el usuario edita Título/Monto a mano: a partir de ahí, un
+  // resultado de extracción que llegue después nunca los sobrescribe (mismo
+  // principio que presupuestoTocado en NewTripDrawer). Son refs, no useState:
+  // el callback de extracción se crea al elegir la foto y puede resolver
+  // varios segundos después — con useState leería el valor "tocado" tal como
+  // estaba en ESE momento (closure obsoleto), no si el usuario escribió
+  // mientras tanto. Un ref siempre se lee al instante en que se consulta.
+  const tituloTocadoRef = useRef(false);
+  const montoTocadoRef = useRef(false);
+
+  // Miniatura de la foto adjunta, si el usuario adjuntó una.
   const [fotoUrl, setFotoUrl] = useState(null);
+
+  // true mientras /api/extract-receipt está en vuelo para la foto adjunta.
+  // Solo controla el spinner sobre la miniatura — nunca deshabilita los
+  // campos: la entrada manual siempre está disponible en paralelo
+  // ("capturar ahora, corregir después", AGENTS.md §1).
+  const [extrayendo, setExtrayendo] = useState(false);
+
+  // Permite cancelar una extracción en curso si el usuario cambia o quita la
+  // foto antes de que responda, para que un resultado viejo nunca llegue a
+  // pisar lo que el usuario ya haya escrito para la foto nueva.
+  const extraccionEnCursoRef = useRef(0);
 
   // Mensajes de validación por campo; vacío = sin error
   const [errores, setErrores] = useState({ titulo: '', monto: '', fecha: '' });
@@ -121,7 +204,8 @@ export const AddExpensesForm = ({ trip, onGuardar = () => {}, onCancelar = () =>
   /**
    * Guarda la miniatura de la primera foto seleccionada como referencia visual.
    * Si se seleccionan varias, el resto se ignora: un solo bloque de gasto por
-   * envío (AGENTS.md §8).
+   * envío (AGENTS.md §8). Además, dispara la extracción por IA en segundo
+   * plano (sin bloquear el formulario) para pre-llenar Monto y Título.
    */
   const manejarSeleccionDeFoto = (evento) => {
     const [primeraFoto] = Array.from(evento.target.files || []);
@@ -134,10 +218,49 @@ export const AddExpensesForm = ({ trip, onGuardar = () => {}, onCancelar = () =>
 
     // Limpia el input para permitir volver a seleccionar el mismo archivo
     evento.target.value = '';
+
+    // Token de esta extracción: si el usuario cambia o quita la foto antes de
+    // que responda, un resultado que llegue tarde se descarta silenciosamente.
+    const tokenDeEstaExtraccion = extraccionEnCursoRef.current + 1;
+    extraccionEnCursoRef.current = tokenDeEstaExtraccion;
+
+    console.log('manejarSeleccionDeFoto: foto adjuntada, iniciando extracción en segundo plano...');
+    setExtrayendo(true);
+    extraerDatosDeRecibo(primeraFoto)
+      .then(({ monto: montoExtraido, comercio }) => {
+        // Una foto más reciente (u otra cancelación) ya invalidó esta extracción
+        if (extraccionEnCursoRef.current !== tokenDeEstaExtraccion) {
+          console.log('manejarSeleccionDeFoto: resultado descartado (foto cambió/se quitó antes de resolver)');
+          return;
+        }
+
+        console.log('manejarSeleccionDeFoto: extracción resuelta ->', { montoExtraido, comercio });
+
+        // Nunca sobrescribe lo que el usuario ya haya escrito a mano (incluso
+        // si lo escribió mientras la extracción seguía en vuelo), y un
+        // resultado null simplemente deja el campo para completar manualmente.
+        if (montoExtraido !== null && !montoTocadoRef.current) {
+          setMonto(String(montoExtraido));
+          console.log('manejarSeleccionDeFoto: Monto pre-llenado con', montoExtraido);
+        }
+        if (comercio !== null && !tituloTocadoRef.current) {
+          setTitulo(comercio);
+          console.log('manejarSeleccionDeFoto: Título pre-llenado con', comercio);
+        }
+      })
+      .finally(() => {
+        if (extraccionEnCursoRef.current === tokenDeEstaExtraccion) {
+          setExtrayendo(false);
+          console.log('manejarSeleccionDeFoto: extracción finalizada, "Analizando recibo..." ocultado');
+        }
+      });
   };
 
-  /** Quita la foto adjunta (y libera su URL de miniatura) */
+  /** Quita la foto adjunta (y libera su URL de miniatura); cancela cualquier extracción en curso */
   const eliminarFoto = () => {
+    extraccionEnCursoRef.current += 1; // invalida cualquier extracción pendiente
+    setExtrayendo(false);
+
     setFotoUrl((anterior) => {
       if (anterior) URL.revokeObjectURL(anterior);
       return null;
@@ -166,12 +289,16 @@ export const AddExpensesForm = ({ trip, onGuardar = () => {}, onCancelar = () =>
 
   /** Reinicia todos los campos a sus valores por defecto */
   const reiniciarFormulario = () => {
+    extraccionEnCursoRef.current += 1; // invalida cualquier extracción pendiente
     if (fotoUrl) URL.revokeObjectURL(fotoUrl);
     setTitulo('');
     setMonto('');
     setFecha(obtenerFechaDeHoy());
     setFotoUrl(null);
+    setExtrayendo(false);
     setErrores({ titulo: '', monto: '', fecha: '' });
+    tituloTocadoRef.current = false;
+    montoTocadoRef.current = false;
   };
 
   /**
@@ -261,6 +388,33 @@ export const AddExpensesForm = ({ trip, onGuardar = () => {}, onCancelar = () =>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
                   </svg>
                 </Button>
+
+                {/* Overlay no bloqueante mientras se extrae monto/comercio: solo cubre la
+                    miniatura, nunca los campos — la entrada manual sigue disponible en paralelo. */}
+                {extrayendo && (
+                  <div
+                    className="absolute inset-0 flex flex-col items-center justify-center gap-1 rounded-md bg-ink-primary/40 text-center px-1"
+                    role="status"
+                    aria-live="polite"
+                  >
+                    <svg
+                      className="w-6 h-6 animate-spin text-bg-surface"
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 0 1 8-8V0C5.373 0 0 5.373 0 12h4Z"
+                      />
+                    </svg>
+                    <span className="text-label font-body text-bg-surface leading-tight">
+                      Analizando recibo…
+                    </span>
+                  </div>
+                )}
               </>
             ) : (
               /* Todavía no hay foto: se muestra la zona de carga */
@@ -285,7 +439,10 @@ export const AddExpensesForm = ({ trip, onGuardar = () => {}, onCancelar = () =>
                 prefix={<IconoRenombrar />}
                 placeholder="Comida"
                 value={titulo}
-                onChange={(e) => setTitulo(e.target.value)}
+                onChange={(e) => {
+                  tituloTocadoRef.current = true;
+                  setTitulo(e.target.value);
+                }}
               />
               {errores.titulo && <span className="text-label text-alert-max px-1">{errores.titulo}</span>}
             </div>
@@ -298,7 +455,10 @@ export const AddExpensesForm = ({ trip, onGuardar = () => {}, onCancelar = () =>
                   prefix={moneda}
                   placeholder="0.00"
                   value={monto}
-                  onChange={(e) => setMonto(e.target.value)}
+                  onChange={(e) => {
+                    montoTocadoRef.current = true;
+                    setMonto(e.target.value);
+                  }}
                 />
                 {errores.monto ? (
                   <span className="text-label text-alert-max px-1">{errores.monto}</span>
