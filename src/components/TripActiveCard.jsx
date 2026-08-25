@@ -144,13 +144,13 @@ export const TripActiveCard = ({ trip, totalGastado, mostrarEnCop = true, onFina
     const montoRestanteODeuda = esBueno ? presupuestoTotal - totalGastado : totalGastado - presupuestoTotal;
 
     return (
-      <div className="relative overflow-hidden bg-status-activo-bg rounded-lg shadow-soft p-6 w-full max-w-md">
+      <div className="relative overflow-hidden bg-status-activo-bg rounded-lg shadow-soft p-5 w-full max-w-md">
         {/* Encabezado: sin badges, solo el título del reporte y el destino */}
         <h2 className="text-h2 font-display text-ink-primary">Reporte de gastos</h2>
-        <h2 className="text-h2 font-display text-ink-primary mb-6">{destino}</h2>
+        <h2 className="text-h2 font-display text-ink-primary mb-4">{destino}</h2>
 
         {/* Fila de resumen: presupuesto vs. gasto total */}
-        <div className="flex gap-8 mb-6">
+        <div className="flex gap-6 mb-4">
           <div>
             <p className="text-label font-body text-ink-muted">Presupuesto</p>
             <p className="text-body font-body text-ink-primary">
@@ -166,7 +166,7 @@ export const TripActiveCard = ({ trip, totalGastado, mostrarEnCop = true, onFina
         </div>
 
         {/* Fila del anillo de gasto + monto restante o deuda */}
-        <div className="flex items-center gap-6 mb-6">
+        <div className="flex items-center gap-4 mb-4">
           {/* Izquierda: anillo de porcentaje gastado */}
           <div className="flex flex-col items-center gap-2">
             <p className="text-label font-body text-ink-muted text-center">Gasto</p>
@@ -237,7 +237,7 @@ export const TripActiveCard = ({ trip, totalGastado, mostrarEnCop = true, onFina
   }
 
   return (
-    <div className="relative overflow-hidden bg-status-activo-bg rounded-lg shadow-soft p-6 w-full max-w-md mx-auto">
+    <div className="relative overflow-hidden bg-status-activo-bg rounded-lg shadow-soft p-5 w-full max-w-md mx-auto">
       {/* Encabezado: Badge de estado y acción de finalizar */}
       <div className="flex justify-between items-center mb-5">
         <StatusBadge status="activo" />
@@ -260,7 +260,7 @@ export const TripActiveCard = ({ trip, totalGastado, mostrarEnCop = true, onFina
       </div>
 
       {/* Presupuesto inicial */}
-      <div className="mb-6">
+      <div className="mb-4">
         <p className="text-label font-body text-ink-muted">Presupuesto inicial</p>
         <p className="text-body font-body text-ink-primary">
           {formatearMontoSegunModoMoneda(presupuestoTotal, destino, mostrarEnCop)}
@@ -268,7 +268,7 @@ export const TripActiveCard = ({ trip, totalGastado, mostrarEnCop = true, onFina
       </div>
 
       {/* Sección de medidores: anillo de progreso + barra de días */}
-      <div className="flex items-center gap-6 mb-6">
+      <div className="flex items-center gap-4 mb-4">
         {/* Izquierda: Anillo de progreso de presupuesto gastado */}
         <div className="flex flex-col items-center">
           <p className="text-label font-body text-ink-muted mb-2">Gasto</p>
@@ -382,7 +382,7 @@ export const TripActiveCard = ({ trip, totalGastado, mostrarEnCop = true, onFina
           >
             <p className="text-body font-body text-ink-primary">El gasto representaría</p>
 
-            <div className="flex justify-evenly gap-8 mt-2">
+            <div className="flex justify-evenly gap-6 mt-2">
               {/* Columna 1: porcentaje sobre el presupuesto diario */}
               <div className="flex flex-col items-center text-center">
                 <p className="text-h2 font-display text-ink-primary">

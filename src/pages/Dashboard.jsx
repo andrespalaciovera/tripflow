@@ -246,43 +246,53 @@ export const Dashboard = () => {
   });
 
   return (
-    <div className="min-h-screen w-full bg-bg-body font-body text-ink-primary flex flex-col lg:h-screen lg:overflow-hidden">
-      {/* Barra de navegación superior: logo + acciones globales (interruptor, nuevo viaje) */}
-      <TopNavbar
-        onCurrencyChange={setMostrarEnCop}
-        onNewTrip={() => setIsNewTripDrawerOpen(true)}
-        hasTrips={viajes.length > 0}
-      />
+    <div className="min-h-screen w-full bg-bg-body font-body text-ink-primary flex flex-col">
+      {/* Barra de navegación superior y encabezado (pegajoso en escritorio para vista con viajes) */}
+      {viajes.length > 0 ? (
+        <div className="lg:sticky lg:top-0 lg:z-30">
+          <TopNavbar
+            onCurrencyChange={setMostrarEnCop}
+            onNewTrip={() => setIsNewTripDrawerOpen(true)}
+            hasTrips={true}
+          />
+          <div className="bg-bg-body border-b border-stroke-form px-4 md:px-6 py-6 md:py-8">
+            <div className="w-full max-w-6xl mx-auto">
+              <h1 className="text-h1 font-display text-ink-primary">{saludoTexto} {saludoEmoji}</h1>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <TopNavbar
+          onCurrencyChange={setMostrarEnCop}
+          onNewTrip={() => setIsNewTripDrawerOpen(true)}
+          hasTrips={false}
+        />
+      )}
 
-      <main className="flex-1 w-full max-w-6xl mx-auto px-4 md:px-6 py-8 md:py-10 lg:flex lg:flex-col lg:min-h-0 lg:overflow-hidden">
+      <main className="flex-1 w-full max-w-6xl mx-auto px-4 md:px-6 py-6 md:py-8">
         {viajes.length === 0 ? (
           <div className="flex flex-col items-center justify-center flex-1 h-full min-h-[60vh] text-center px-4">
             <h1 className="text-h1 font-display text-ink-primary mb-4">{saludoTexto} {saludoEmoji}</h1>
             <h2 className="text-h2 font-display text-ink-primary mb-2">Aun no tienes viajes planeados</h2>
-            <p className="text-body font-body text-ink-muted max-w-md mb-6">Crea tu primer viaje para empezar a controlar tu presupuesto y organizar tus gastos de forma sencilla.</p>
+            <p className="text-body font-body text-ink-muted max-w-md mb-4">Crea tu primer viaje para empezar a controlar tu presupuesto y organizar tus gastos de forma sencilla.</p>
             <Button variant="primary" onClick={() => setIsNewTripDrawerOpen(true)}>
               Programar viaje
             </Button>
           </div>
         ) : (
           <>
-            {/* Encabezado: saludo */}
-            <div className="mb-8">
-              <h1 className="text-h1 font-display text-ink-primary">{saludoTexto} {saludoEmoji}</h1>
-            </div>
-
             {/* Layout de dos columnas: viajes a la izquierda, gastos a la derecha */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start lg:items-stretch lg:flex-1 lg:min-h-0">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
               {/* Columna izquierda: "Tus viajes".
                * El título vive fuera de cualquier contenedor de scroll.
                * Móvil: MobileSlider (1 a 1 con puntos de paginación).
                * Escritorio (md:): columna vertical clásica. */}
-              <section className="flex flex-col gap-4 md:gap-6 min-h-[50vh] md:min-h-[400px] lg:h-full lg:min-h-0 lg:overflow-hidden">
+              <section className="flex flex-col gap-4 md:gap-6 min-h-[50vh] md:min-h-[400px]">
                 <h2 className="text-h3 font-display text-ink-primary">Tus viajes</h2>
 
                 {viajes.length === 0 ? (
                   /* Estado vacío: se muestra cuando aún no existe ningún viaje en el store */
-                  <div className="flex flex-col items-center justify-center flex-1 h-full border-2 border-dashed border-stroke-form rounded-lg p-8 mt-4">
+                  <div className="flex flex-col items-center justify-center flex-1 h-full border-2 border-dashed border-stroke-form rounded-lg p-6 mt-4">
                     <p className="text-body font-body text-ink-muted text-center">
                       No has creado ningún viaje aún.
                     </p>
@@ -297,7 +307,7 @@ export const Dashboard = () => {
                     </div>
 
                     {/* ESCRITORIO: columna vertical con separación entre tarjetas */}
-                    <div className="hidden md:flex md:flex-col md:gap-6 [&>*]:w-full [&>*]:!max-w-full lg:flex-1 lg:min-h-0 lg:overflow-y-auto lg:pr-2">
+                    <div className="hidden md:flex md:flex-col md:gap-6 [&>*]:w-full [&>*]:!max-w-full">
                       {tarjetasDeViajes}
                     </div>
                   </>
@@ -305,7 +315,7 @@ export const Dashboard = () => {
               </section>
 
               {/* Columna derecha: "Gastos recientes" del viaje Activo + panel para agregar */}
-              <section className="flex flex-col gap-6 min-h-[50vh] md:min-h-[400px] lg:h-full lg:min-h-0 lg:overflow-hidden">
+              <section className="flex flex-col gap-6 min-h-[50vh] md:min-h-[400px]">
                 <div className="flex justify-between items-center">
                   <h2 className="text-h3 font-display text-ink-primary">Gastos recientes</h2>
                   {/* AGENTS.md §6: este panel solo tiene sentido para el viaje Activo.
@@ -338,36 +348,34 @@ export const Dashboard = () => {
                 gasto.monto está en la moneda local del viaje: se convierte a COP
                 primero y formatearMontoSegunModoMoneda decide, según el interruptor,
                 si se muestra así o se vuelve a convertir a la moneda local para mostrar. */}
-                <div className="lg:flex-1 lg:min-h-0 lg:overflow-y-auto lg:pr-2">
-                  {activeTripExpenses.length === 0 ? (
-                    /* Estado vacío: sin gastos registrados para el viaje Activo */
-                    <div className="flex flex-col items-center justify-center h-full min-h-[200px] border-2 border-dashed border-stroke-form rounded-lg p-8">
-                      <p className="text-body font-body text-ink-muted text-center">
-                        No se ha agregado ningún gasto.
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="flex flex-col gap-3">
-                      {activeTripExpenses.map((gasto) => (
-                        <ExpenseRow
-                          key={gasto.id}
-                          description={gasto.titulo}
-                          amount={formatearMontoSegunModoMoneda(
-                            convertirLocalACOP(gasto.monto, viajeActivo.pais),
-                            viajeActivo.pais,
-                            mostrarEnCop
-                          )}
-                          relativeTime={formatearTiempoRelativo(gasto.creado_en)}
-                          riskLevel={calcularNivelRiesgoGasto(
-                            gasto.monto,
-                            viajeActivo.pais,
-                            presupuestoDiarioFijoDelActivo
-                          )}
-                        />
-                      ))}
-                    </div>
-                  )}
-                </div>
+                {activeTripExpenses.length === 0 ? (
+                  /* Estado vacío: sin gastos registrados para el viaje Activo */
+                  <div className="flex flex-col items-center justify-center h-full min-h-[200px] border-2 border-dashed border-stroke-form rounded-lg p-6">
+                    <p className="text-body font-body text-ink-muted text-center">
+                      No se ha agregado ningún gasto.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-3">
+                    {activeTripExpenses.map((gasto) => (
+                      <ExpenseRow
+                        key={gasto.id}
+                        description={gasto.titulo}
+                        amount={formatearMontoSegunModoMoneda(
+                          convertirLocalACOP(gasto.monto, viajeActivo.pais),
+                          viajeActivo.pais,
+                          mostrarEnCop
+                        )}
+                        relativeTime={formatearTiempoRelativo(gasto.creado_en)}
+                        riskLevel={calcularNivelRiesgoGasto(
+                          gasto.monto,
+                          viajeActivo.pais,
+                          presupuestoDiarioFijoDelActivo
+                        )}
+                      />
+                    ))}
+                  </div>
+                )}
               </section>
             </div>
             {/* Botón móvil "+ Nuevo viaje" — solo cuando hay un viaje Activo.

@@ -8,12 +8,12 @@ export default {
         body: ['Public Sans', 'sans-serif'],
       },
       fontSize: {
-        h1: ['48px', { lineHeight: '50px', letterSpacing: '-1.92px', fontWeight: '800' }],
-        h2: ['32px', { lineHeight: '36px', fontWeight: '700' }],
-        h3: ['24px', { lineHeight: '28px', fontWeight: '700' }],
+        h1: ['40px', { lineHeight: '42px', letterSpacing: '-1.6px', fontWeight: '800' }],
+        h2: ['28px', { lineHeight: '32px', fontWeight: '700' }],
+        h3: ['20px', { lineHeight: '24px', fontWeight: '700' }],
         body: ['16px', { lineHeight: '20px', fontWeight: '400' }],
         label: ['12px', { lineHeight: '20px', fontWeight: '600' }],
-        'ring-percent': ['18px', { lineHeight: '30px', fontWeight: '600' }],
+        'ring-percent': ['16px', { lineHeight: '26px', fontWeight: '600' }],
       },
       colors: {
         'bg-body': '#F6F4ED',

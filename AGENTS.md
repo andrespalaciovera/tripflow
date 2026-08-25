@@ -20,6 +20,8 @@ A travel budget tracking webapp. Three core features: expense dashboard, trip cr
 - **Persistence:** `localStorage`, exclusively through a single data layer
 - **Deploy:** Cloudflare Pages
 
+> **OpenRouter model (as of 2026-08-25):** The extraction endpoint (`/api/extract-receipt`) uses `google/gemini-2.5-flash` (a paid, specific model) instead of the free auto-router (`openrouter/free`), for reliability — the free router showed inconsistent latency (9–40s) and occasional null extractions during testing. Cost per call is negligible (fractions of a cent) given typical receipt image sizes. A per-key spending limit is set on the OpenRouter account as a safety cap.
+
 ### Persistence rule (non-negotiable)
 
 All data reads/writes go through `/lib/store.ts`. No component calls `localStorage` directly. Expected functions: `getTrips()`, `getTrip(id)`, `saveTrip(trip)`, `deleteTrip(id)`, `getExpenses(tripId)`, `saveExpense(expense)`, `deleteExpense(id)`.
@@ -115,6 +117,8 @@ The header greeting ('Buenos días'/'Buenas tardes'/'Buenas noches') is always b
 ---
 
 ## 4. Tokens — `tailwind.config.js`
+
+> **Compact density scale (as of 2026-08-25).** The app uses a deliberately compact density scale, smaller than the original Figma mockup's values, because the fixed 100vh app-shell layout (no page scroll) needs tighter proportions to avoid excessive internal column scrolling. Figma's original spacious values remain the reference for **visual style** (colors, radii, component shapes) but **not** for exact type/spacing sizes — the values below are the canonical source of truth for sizing going forward.
 
 ```js
 module.exports = {

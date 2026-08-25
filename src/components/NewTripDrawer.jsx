@@ -236,7 +236,7 @@ export const NewTripDrawer = ({ isOpen, onClose, onSave }) => {
         </div>
 
         {/* Cuerpo del formulario */}
-        <div className="flex-1 flex flex-col gap-6 px-6 py-6">
+        <div className="flex-1 flex flex-col gap-4 px-5 py-5">
           {/* Campo 1: Lugar */}
           <div className="flex flex-col gap-2 w-full">
             <label className="text-label font-body text-ink-primary">Lugar</label>

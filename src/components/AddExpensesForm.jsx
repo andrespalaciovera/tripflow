@@ -419,14 +419,14 @@ export const AddExpensesForm = ({ trip, onGuardar = () => {}, onCancelar = () =>
   if (!isVisible) return null;
 
   return (
-    <div className={`bg-bg-navbar-forms rounded-lg shadow-soft p-6 ${className}`}>
+    <div className={`bg-bg-navbar-forms rounded-lg shadow-soft p-5 ${className}`}>
       {/* Encabezado del formulario */}
       <div className="flex justify-between items-center">
         <h3 className="text-h3 font-display text-ink-primary">Agregar gastos</h3>
       </div>
 
       {/* Cuerpo del formulario */}
-      <div className="flex flex-col gap-6 mt-6">
+      <div className="flex flex-col gap-4 mt-4">
         {/* Input de archivo oculto para la zona de carga */}
         <input
           ref={inputFotoRef}
@@ -498,7 +498,7 @@ export const AddExpensesForm = ({ trip, onGuardar = () => {}, onCancelar = () =>
               <button
                 type="button"
                 onClick={abrirSelectorDeFoto}
-                className="flex flex-col items-center justify-center gap-1 min-h-[160px] w-full md:w-[219px] shrink-0 px-8 py-8 rounded-md border-2 border-dashed border-stroke-form bg-surface text-center transition-colors hover:border-ink-primary/30"
+                className="flex flex-col items-center justify-center gap-1 min-h-[160px] w-full md:w-[219px] shrink-0 px-6 py-6 rounded-md border-2 border-dashed border-stroke-form bg-surface text-center transition-colors hover:border-ink-primary/30"
               >
                 <IconoFoto />
                 <span className="text-body text-ink-primary mt-2">
@@ -509,7 +509,7 @@ export const AddExpensesForm = ({ trip, onGuardar = () => {}, onCancelar = () =>
             )}
           </div>
 
-          <div className="flex flex-col gap-6 flex-1 w-full">
+          <div className="flex flex-col gap-4 flex-1 w-full">
             <div className="flex flex-col gap-1.5">
               <Input
                 label="Nombre del gasto"
@@ -525,7 +525,7 @@ export const AddExpensesForm = ({ trip, onGuardar = () => {}, onCancelar = () =>
               {errores.titulo && <span className="text-label text-alert-max px-1">{errores.titulo}</span>}
             </div>
 
-            <div className="flex flex-col gap-6">
+            <div className="flex flex-col gap-4">
               <div className="flex flex-col gap-1.5 w-full">
                 <Input
                   label="Monto"
