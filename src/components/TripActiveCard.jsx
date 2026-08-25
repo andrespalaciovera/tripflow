@@ -187,9 +187,8 @@ export const TripActiveCard = ({ trip, totalGastado, mostrarEnCop = true, onFina
                   strokeDashoffset={desplazamiento}
                 />
               </svg>
-              {/* Porcentaje centrado dentro del anillo */}
               <div className="absolute inset-0 flex items-center justify-center">
-                <span className="text-h3 font-display text-ink-primary">
+                <span className="text-ring-percent font-body text-ink-primary">
                   {Math.round(porcentajeGastado)}%
                 </span>
               </div>
@@ -243,7 +242,10 @@ export const TripActiveCard = ({ trip, totalGastado, mostrarEnCop = true, onFina
       <div className="flex justify-between items-center mb-5">
         <StatusBadge status="activo" />
         {/* Nota: "success-outline" corresponde a la variante 'tertiary' de Button.jsx */}
-        <Button variant="tertiary" onClick={() => setMostrarConfirmacion(true)}>
+        <Button variant="tertiary" onClick={() => setMostrarConfirmacion(true)} className="gap-2">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
+            <rect x="4" y="4" width="16" height="16" rx="4" />
+          </svg>
           Finalizar viaje
         </Button>
       </div>
@@ -294,9 +296,8 @@ export const TripActiveCard = ({ trip, totalGastado, mostrarEnCop = true, onFina
                 strokeDashoffset={desplazamiento}
               />
             </svg>
-            {/* Porcentaje centrado dentro del anillo */}
             <div className="absolute inset-0 flex items-center justify-center">
-              <span className="text-h3 font-display text-ink-primary">
+              <span className="text-ring-percent font-body text-ink-primary">
                 {Math.round(porcentajeGastado)}%
               </span>
             </div>
@@ -317,7 +318,7 @@ export const TripActiveCard = ({ trip, totalGastado, mostrarEnCop = true, onFina
           </p>
 
           {/* Barra de progreso lineal de días transcurridos */}
-          <div className="bg-bg-surface h-2 rounded-full w-full overflow-hidden">
+          <div className="bg-overlay-white h-3 rounded-full w-full overflow-hidden">
             <div
               className="bg-status-activo-text h-full rounded-full transition-all duration-500 ease-in-out"
               style={{ width: `${porcentajeDias}%` }}
@@ -327,7 +328,7 @@ export const TripActiveCard = ({ trip, totalGastado, mostrarEnCop = true, onFina
       </div>
 
       {/* Sección inferior: gasto diario disponible (tarjeta blanca de solo texto) */}
-      <div className="bg-bg-surface rounded-md p-4">
+      <div className="bg-overlay-white rounded-xs p-3">
         <p className="text-body font-body text-ink-primary">Cada día restante puedes gastar</p>
         <p className="text-h3 font-display text-ink-primary mt-1">
           {formatearMontoSegunModoMoneda(presupuestoDiarioRestante, destino, mostrarEnCop)}

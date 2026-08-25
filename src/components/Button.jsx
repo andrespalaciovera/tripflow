@@ -7,14 +7,14 @@ const VARIANTES = {
   // Variante principal: Fondo negro tinta y texto blanco superficie
   primary: 'bg-ink-primary text-bg-surface hover:opacity-90 active:scale-[0.98]',
   
-  // Variante secundaria: Fondo transparente con borde y texto negro tinta
-  secondary: 'bg-transparent border border-ink-primary text-ink-primary hover:bg-ink-primary/5 active:scale-[0.98]',
+  // Variante secundaria: Fondo transparente con borde 2px y texto negro tinta
+  secondary: 'bg-transparent border-2 border-ink-primary text-ink-primary hover:bg-ink-primary/5 active:scale-[0.98]',
   
   // Variante deshabilitada: Fondo gris desactivado y cursor no permitido
   disabled: 'bg-btn-disable text-bg-surface cursor-not-allowed pointer-events-none',
   
-  // Variante terciaria: Fondo transparente con borde y texto verde de estado activo
-  tertiary: 'bg-transparent border border-status-activo-text text-status-activo-text hover:bg-status-activo-bg/40 active:scale-[0.98]',
+  // Variante terciaria: Fondo transparente con borde 2px y texto verde de estado activo
+  tertiary: 'bg-transparent border-2 border-status-activo-text text-status-activo-text hover:bg-status-activo-bg/40 active:scale-[0.98]',
   
   // Variante botón de icono para agregar: Circular, fondo negro tinta y texto blanco superficie
   'icon-add': 'w-10 h-10 aspect-square p-2 bg-ink-primary text-bg-surface hover:opacity-90 active:scale-95',
