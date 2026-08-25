@@ -102,7 +102,16 @@ export const Dashboard = () => {
       <TopNavbar onCurrencyChange={setMostrarEnCop} />
 
       <main className="flex-1 w-full max-w-6xl mx-auto px-4 md:px-6 py-8 md:py-10">
-        {/* Encabezado: saludo + acción de nuevo viaje.
+        {viajes.length === 0 ? (
+          <div className="flex flex-col items-center justify-center flex-1 h-full min-h-[60vh] text-center px-4">
+            <h1 className="text-h1 font-display text-ink-primary mb-4">Buenos días ☀️</h1>
+            <h2 className="text-h2 font-display text-ink-primary mb-2">Aun no tienes viajes planeados</h2>
+            <p className="text-body font-body text-ink-muted mb-8 max-w-md">Crea tu primer viaje para empezar a controlar tu presupuesto y organizar tus gastos de forma sencilla.</p>
+            <Button variant="primary" onClick={() => setIsNewTripDrawerOpen(true)}>Programar viaje</Button>
+          </div>
+        ) : (
+          <>
+            {/* Encabezado: saludo + acción de nuevo viaje.
             El botón se oculta en móvil — MobileBottomBar (Caso 2) lo reemplaza. */}
         <div className="flex flex-col md:flex-row md:flex-wrap justify-between items-stretch md:items-center gap-4 mb-8">
           <h1 className="text-h1 font-display text-ink-primary">Buenos días ☀️</h1>
@@ -265,37 +274,16 @@ export const Dashboard = () => {
             + Nuevo viaje
           </Button>
         )}
+          </>
+        )}
       </main>
 
-
-      {/* Pie de página */}
-      <footer className="w-full bg-bg-navbar-forms border-t border-stroke-form mt-12">
-        <div className="max-w-6xl mx-auto px-4 md:px-6 py-8 flex flex-col md:flex-row justify-between items-center gap-4">
-          <div className="flex flex-col items-center md:items-start gap-1">
-            <span className="font-display text-h3 text-ink-primary select-none">Tripflow</span>
-            <span className="text-label font-body text-ink-muted">
-              © 2026 Tripflow. All rights reserved.
-            </span>
-          </div>
-
-          <nav className="flex items-center gap-6">
-            <a href="#" className="text-label font-body text-ink-muted hover:text-ink-primary transition-colors">
-              Privacy Policy
-            </a>
-            <a href="#" className="text-label font-body text-ink-muted hover:text-ink-primary transition-colors">
-              Terms of Service
-            </a>
-            <a href="#" className="text-label font-body text-ink-muted hover:text-ink-primary transition-colors">
-              Help Center
-            </a>
-          </nav>
-        </div>
-      </footer>
 
       {/* Barra de acciones fija en la parte inferior — solo móvil (md:hidden).
           Caso 1 (viajeActivo): botón "Agregar gastos" + interruptor de moneda.
           Caso 2 (sin viajeActivo): botón "Agregar nuevo viaje" a ancho completo. */}
       <MobileBottomBar
+        hasAnyTrips={viajes.length > 0}
         hasActiveTrip={!!viajeActivo}
         onAddExpense={() => setMostrarFormularioGastos(true)}
         onNewTrip={() => setIsNewTripDrawerOpen(true)}

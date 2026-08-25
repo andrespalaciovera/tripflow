@@ -290,19 +290,23 @@ export const NewTripDrawer = ({ isOpen, onClose, onSave }) => {
           {/* Campo 3: Fechas del viaje */}
           <div className="flex flex-col gap-2 w-full">
             <label className="text-label font-body text-ink-primary">Fechas del viaje</label>
-            <div className="flex gap-4 w-full">
-              <Input
-                type="date"
-                prefix={<IconoCalendario />}
-                value={fechaInicio}
-                onChange={(e) => setFechaInicio(e.target.value)}
-              />
-              <Input
-                type="date"
-                prefix={<IconoCalendario />}
-                value={fechaFin}
-                onChange={(e) => setFechaFin(e.target.value)}
-              />
+            <div className="flex flex-col sm:flex-row gap-4 w-full">
+              <div className="flex-1 min-w-0">
+                <Input
+                  type="date"
+                  prefix={<IconoCalendario />}
+                  value={fechaInicio}
+                  onChange={(e) => setFechaInicio(e.target.value)}
+                />
+              </div>
+              <div className="flex-1 min-w-0">
+                <Input
+                  type="date"
+                  prefix={<IconoCalendario />}
+                  value={fechaFin}
+                  onChange={(e) => setFechaFin(e.target.value)}
+                />
+              </div>
             </div>
             {errores.fechas && <span className="text-label text-alert-max px-1">{errores.fechas}</span>}
           </div>
