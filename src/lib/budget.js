@@ -24,7 +24,21 @@
  * @returns {Date} Medianoche local de esa fecha
  */
 const parsearFechaLocal = (fechaStr) => {
-  const [year, month, day] = fechaStr.split('-').map(Number);
+  // Guarda defensiva: solo acepta el formato exacto "YYYY-MM-DD" que guardan
+  // fecha_inicio y fecha_fin (AGENTS.md §3). Si llega un string con horas o
+  // zona horaria (ej. un timestamp ISO completo de datos viejos en localStorage),
+  // se trunca a los 10 primeros caracteres y se registra un aviso en consola
+  // para que el origen del dato malformado sea fácil de encontrar en desarrollo.
+  const fechaNormalizada = String(fechaStr).trim().slice(0, 10);
+  if (fechaNormalizada !== fechaStr.trim()) {
+    console.warn(
+      `parsearFechaLocal: fecha recibida no es "YYYY-MM-DD" puro ("${fechaStr}"). ` +
+      `Esto indica un dato malformado en el store (posiblemente una entrada guardada ` +
+      `antes de que el formato se estandarizara). Se trunca a "${fechaNormalizada}".`
+    );
+  }
+
+  const [year, month, day] = fechaNormalizada.split('-').map(Number);
   return new Date(year, month - 1, day);
 };
 
