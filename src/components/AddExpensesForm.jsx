@@ -1,6 +1,7 @@
 import React, { useRef, useState } from 'react';
 import Button from './Button';
 import Input from './Input';
+import { saveExpense } from '../lib/store';
 
 /**
  * Icono de "renombrar" (fluent:rename-16-regular) usado como prefijo
@@ -44,116 +45,145 @@ const IconoFoto = () => (
   </svg>
 );
 
-/** Genera un identificador único y legible para cada bloque de gasto */
-const generarId = () => `gasto-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-
-/** Crea un objeto de gasto vacío (sin foto ni datos capturados aún) */
-const crearGastoVacio = () => ({
-  id: generarId(),
-  nombre: '',
-  monto: '',
-  fecha: '',
-  fotoUrl: null,
-});
+/** Fecha de hoy en formato nativo de <input type="date"> (YYYY-MM-DD) */
+const obtenerFechaDeHoy = () => new Date().toISOString().slice(0, 10);
 
 /**
- * AddExpensesForm — Formulario "organismo" para agregar gastos de un viaje.
+ * AddExpensesForm — Formulario "organismo" para agregar un gasto del viaje Activo.
  *
  * Combina los componentes reutilizables <Button /> e <Input /> para reproducir
  * los estados "vacío" y "lleno" definidos en Figma (nodos 27:6610 y 27:6611).
- * Cada bloque de gasto es independiente: puede tener o no una foto de recibo
- * asociada, y todos viven en un único arreglo de estado.
+ * Un único bloque de gasto (foto + Nombre/Monto/Fecha) por envío — registrar
+ * varios gastos desde varias fotos en un mismo envío está fuera de alcance
+ * del MVP (AGENTS.md §8), así que este formulario nunca genera más de un
+ * bloque: si se adjunta una foto, por ahora solo se guarda como referencia
+ * visual y el usuario sigue completando Título/Monto/Fecha a mano (la
+ * extracción por IA es un trabajo aparte, todavía no implementado).
+ *
+ * Guarda el gasto directamente con saveExpense() de /lib/store.js — este
+ * componente es el único responsable de persistirlo; el padre solo necesita
+ * reaccionar a onGuardar para refrescar sus datos derivados (lista de gastos
+ * recientes y números de presupuesto del viaje Activo).
  *
  * @param {Object} props
- * @param {Function} [props.onGuardar] - Se dispara con la lista de gastos al presionar "Guardar"
+ * @param {string} props.tripId - Id del viaje Activo al que pertenece el gasto (AGENTS.md §6:
+ *   este panel solo tiene sentido en el contexto del viaje Activo)
+ * @param {Function} [props.onGuardar] - Se dispara con el gasto ya guardado (incluye id) al presionar "Guardar"
  * @param {Function} [props.onCancelar] - Se dispara al presionar "Cancelar"
  * @param {string} [props.className] - Clases adicionales para el contenedor raíz
  */
-export const AddExpensesForm = ({ onGuardar = () => {}, onCancelar = () => {}, className = '' }) => {
+export const AddExpensesForm = ({ tripId, onGuardar = () => {}, onCancelar = () => {}, className = '' }) => {
   // Controla si el formulario sigue montado en pantalla.
   // No es un "acordeón": el formulario lo monta un disparador externo,
   // y al cancelar desaparece por completo (no queda un encabezado colapsado).
   const [isVisible, setIsVisible] = useState(true);
 
-  // Arreglo único con todos los bloques de gasto. Arranca con un solo bloque vacío,
-  // que se ve como la "zona de carga" + campos en blanco (estado vacío del diseño).
-  const [gastos, setGastos] = useState(() => [crearGastoVacio()]);
+  // Campos del único gasto que este formulario puede crear
+  const [titulo, setTitulo] = useState('');
+  const [monto, setMonto] = useState('');
+  // Fecha por defecto: hoy (AGENTS.md §7), editable
+  const [fecha, setFecha] = useState(obtenerFechaDeHoy);
 
-  // Id del gasto que está solicitando una foto en este momento (el bloque que
-  // disparó el selector de archivos), para saber a cuál de todos asignársela.
-  const [idFotoObjetivo, setIdFotoObjetivo] = useState(null);
+  // Miniatura de la foto adjunta, si el usuario adjuntó una. Puramente visual
+  // en este paso: no se envía ni se procesa (ver nota de alcance arriba).
+  const [fotoUrl, setFotoUrl] = useState(null);
 
-  // Referencia al input de tipo archivo (oculto), compartido por todos los bloques
+  // Mensajes de validación por campo; vacío = sin error
+  const [errores, setErrores] = useState({ titulo: '', monto: '', fecha: '' });
+
+  // Referencia al input de tipo archivo (oculto)
   const inputFotoRef = useRef(null);
 
-  /** Agrega un nuevo bloque de gasto vacío al final del arreglo */
-  const agregarBloqueVacio = () => {
-    setGastos((anteriores) => [...anteriores, crearGastoVacio()]);
-  };
-
-  /** Abre el selector de archivos para asociar una foto a un gasto puntual */
-  const abrirSelectorDeFoto = (id) => {
-    setIdFotoObjetivo(id);
+  const abrirSelectorDeFoto = () => {
     inputFotoRef.current?.click();
   };
 
   /**
-   * Asocia la foto seleccionada al gasto que la solicitó (idFotoObjetivo).
-   * Si se seleccionan varias fotos a la vez, la primera se asigna al bloque
-   * que disparó la carga y el resto genera bloques nuevos, cada uno con su foto.
+   * Guarda la miniatura de la primera foto seleccionada como referencia visual.
+   * Si se seleccionan varias, el resto se ignora: un solo bloque de gasto por
+   * envío (AGENTS.md §8).
    */
   const manejarSeleccionDeFoto = (evento) => {
-    const archivos = Array.from(evento.target.files || []);
-    if (archivos.length === 0 || !idFotoObjetivo) return;
+    const [primeraFoto] = Array.from(evento.target.files || []);
+    if (!primeraFoto) return;
 
-    const [primeraFoto, ...fotosRestantes] = archivos;
-
-    setGastos((anteriores) => {
-      const conFotoAsignada = anteriores.map((gasto) =>
-        gasto.id === idFotoObjetivo
-          ? { ...gasto, fotoUrl: URL.createObjectURL(primeraFoto) }
-          : gasto
-      );
-
-      const bloquesAdicionales = fotosRestantes.map((archivo) => ({
-        ...crearGastoVacio(),
-        fotoUrl: URL.createObjectURL(archivo),
-      }));
-
-      return [...conFotoAsignada, ...bloquesAdicionales];
+    setFotoUrl((anterior) => {
+      if (anterior) URL.revokeObjectURL(anterior);
+      return URL.createObjectURL(primeraFoto);
     });
 
-    setIdFotoObjetivo(null);
     // Limpia el input para permitir volver a seleccionar el mismo archivo
     evento.target.value = '';
   };
 
-  /** Elimina un bloque de gasto (y libera la URL de su miniatura, si tenía) */
-  const eliminarGasto = (id) => {
-    setGastos((anteriores) => {
-      const gasto = anteriores.find((g) => g.id === id);
-      if (gasto?.fotoUrl) URL.revokeObjectURL(gasto.fotoUrl);
-      return anteriores.filter((g) => g.id !== id);
+  /** Quita la foto adjunta (y libera su URL de miniatura) */
+  const eliminarFoto = () => {
+    setFotoUrl((anterior) => {
+      if (anterior) URL.revokeObjectURL(anterior);
+      return null;
     });
   };
 
-  /** Actualiza un campo (nombre, monto o fecha) de un gasto puntual por su id */
-  const actualizarCampoDeGasto = (id, campo, valor) => {
-    setGastos((anteriores) =>
-      anteriores.map((g) => (g.id === id ? { ...g, [campo]: valor } : g))
-    );
+  /** Valida título no vacío, monto positivo y fecha presente */
+  const validarFormulario = () => {
+    const nuevosErrores = { titulo: '', monto: '', fecha: '' };
+
+    if (!titulo.trim()) {
+      nuevosErrores.titulo = 'Ingresa un nombre para el gasto.';
+    }
+
+    const montoNumerico = Number(monto);
+    if (!monto || Number.isNaN(montoNumerico) || montoNumerico <= 0) {
+      nuevosErrores.monto = 'Ingresa un monto válido, mayor a 0.';
+    }
+
+    if (!fecha) {
+      nuevosErrores.fecha = 'Selecciona una fecha.';
+    }
+
+    return nuevosErrores;
   };
 
+  /** Reinicia todos los campos a sus valores por defecto */
+  const reiniciarFormulario = () => {
+    if (fotoUrl) URL.revokeObjectURL(fotoUrl);
+    setTitulo('');
+    setMonto('');
+    setFecha(obtenerFechaDeHoy());
+    setFotoUrl(null);
+    setErrores({ titulo: '', monto: '', fecha: '' });
+  };
+
+  /**
+   * Valida, construye el Expense (AGENTS.md §3) y lo persiste con saveExpense().
+   * Si hay errores, el panel permanece abierto y se muestran junto a cada campo.
+   */
   const manejarGuardar = () => {
-    onGuardar(gastos);
+    const nuevosErrores = validarFormulario();
+    const hayErrores = Object.values(nuevosErrores).some(Boolean);
+
+    if (hayErrores) {
+      setErrores(nuevosErrores);
+      return;
+    }
+
+    const gasto = {
+      trip_id: tripId,
+      titulo: titulo.trim(),
+      monto: Number(monto),
+      fecha,
+      origen: 'manual',
+      creado_en: new Date().toISOString(),
+    };
+
+    const registroGuardado = saveExpense(gasto);
+
+    reiniciarFormulario();
+    onGuardar(registroGuardado);
   };
 
   const manejarCancelar = () => {
-    gastos.forEach((g) => {
-      if (g.fotoUrl) URL.revokeObjectURL(g.fotoUrl);
-    });
-    setGastos([crearGastoVacio()]);
-    setIdFotoObjetivo(null);
+    reiniciarFormulario();
     onCancelar();
     // El formulario desaparece por completo: no queda un encabezado colapsado
     setIsVisible(false);
@@ -169,23 +199,11 @@ export const AddExpensesForm = ({ onGuardar = () => {}, onCancelar = () => {}, c
       {/* Encabezado del formulario */}
       <div className="flex justify-between items-center">
         <h3 className="text-h3 font-display text-ink-primary">Agregar gastos</h3>
-        <Button variant="icon-add" aria-label="Agregar otro gasto" onClick={agregarBloqueVacio}>
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-            strokeWidth={2.5}
-            stroke="currentColor"
-            className="w-5 h-5"
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-          </svg>
-        </Button>
       </div>
 
       {/* Cuerpo del formulario */}
       <div className="flex flex-col gap-6 mt-6">
-        {/* Input de archivo oculto, compartido por todas las zonas de carga */}
+        {/* Input de archivo oculto para la zona de carga */}
         <input
           ref={inputFotoRef}
           type="file"
@@ -195,79 +213,88 @@ export const AddExpensesForm = ({ onGuardar = () => {}, onCancelar = () => {}, c
           onChange={manejarSeleccionDeFoto}
         />
 
-        {/* Un bloque completo (foto + campos) por cada gasto del arreglo */}
-        {gastos.map((gasto) => (
-          <div key={gasto.id} className="flex flex-col md:flex-row gap-4 items-start">
-            <div className="relative shrink-0">
-              {gasto.fotoUrl ? (
-                /* El gasto ya tiene una foto asociada: se muestra la miniatura */
-                <>
-                  <img
-                    src={gasto.fotoUrl}
-                    alt={`Recibo de ${gasto.nombre || 'gasto'}`}
-                    className="w-28 h-28 rounded-md object-cover border border-stroke-form bg-surface"
-                  />
-                  <Button
-                    variant="icon-delete"
-                    aria-label="Eliminar recibo"
-                    onClick={() => eliminarGasto(gasto.id)}
-                    className="!w-7 !h-7 absolute -top-2 -left-2"
-                  >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      strokeWidth={2.5}
-                      stroke="currentColor"
-                      className="w-3.5 h-3.5"
-                    >
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
-                    </svg>
-                  </Button>
-                </>
-              ) : (
-                /* El gasto todavía no tiene foto: se muestra la zona de carga */
-                <button
-                  type="button"
-                  onClick={() => abrirSelectorDeFoto(gasto.id)}
-                  className="flex flex-col items-center justify-center gap-1 min-h-[160px] w-full md:w-[219px] shrink-0 px-8 py-8 rounded-md border-2 border-dashed border-stroke-form bg-surface text-center transition-colors hover:border-ink-primary/30"
+        {/* Único bloque: foto + campos */}
+        <div className="flex flex-col md:flex-row gap-4 items-start">
+          <div className="relative shrink-0">
+            {fotoUrl ? (
+              /* Ya hay una foto asociada: se muestra la miniatura */
+              <>
+                <img
+                  src={fotoUrl}
+                  alt={`Recibo de ${titulo || 'gasto'}`}
+                  className="w-28 h-28 rounded-md object-cover border border-stroke-form bg-surface"
+                />
+                <Button
+                  variant="icon-delete"
+                  aria-label="Eliminar recibo"
+                  onClick={eliminarFoto}
+                  className="!w-7 !h-7 absolute -top-2 -left-2"
                 >
-                  <IconoFoto />
-                  <span className="text-body text-ink-primary mt-2">
-                    Toma una o varias fotos de tus recibos
-                  </span>
-                  <span className="text-label text-ink-muted">También puedes arrastrarlas aquí</span>
-                </button>
-              )}
-            </div>
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    strokeWidth={2.5}
+                    stroke="currentColor"
+                    className="w-3.5 h-3.5"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                  </svg>
+                </Button>
+              </>
+            ) : (
+              /* Todavía no hay foto: se muestra la zona de carga */
+              <button
+                type="button"
+                onClick={abrirSelectorDeFoto}
+                className="flex flex-col items-center justify-center gap-1 min-h-[160px] w-full md:w-[219px] shrink-0 px-8 py-8 rounded-md border-2 border-dashed border-stroke-form bg-surface text-center transition-colors hover:border-ink-primary/30"
+              >
+                <IconoFoto />
+                <span className="text-body text-ink-primary mt-2">
+                  Toma una o varias fotos de tus recibos
+                </span>
+                <span className="text-label text-ink-muted">También puedes arrastrarlas aquí</span>
+              </button>
+            )}
+          </div>
 
-            <div className="flex flex-col gap-6 flex-1 w-full">
+          <div className="flex flex-col gap-6 flex-1 w-full">
+            <div className="flex flex-col gap-1.5">
               <Input
                 label="Nombre del gasto"
                 prefix={<IconoRenombrar />}
                 placeholder="Comida"
-                value={gasto.nombre}
-                onChange={(e) => actualizarCampoDeGasto(gasto.id, 'nombre', e.target.value)}
+                value={titulo}
+                onChange={(e) => setTitulo(e.target.value)}
               />
-              <div className="flex flex-col sm:flex-row gap-6">
+              {errores.titulo && <span className="text-label text-alert-max px-1">{errores.titulo}</span>}
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-6">
+              <div className="flex flex-col gap-1.5 w-full">
                 <Input
                   label="Monto"
                   type="number"
                   prefix="$"
                   placeholder="0.00"
-                  value={gasto.monto}
-                  onChange={(e) => actualizarCampoDeGasto(gasto.id, 'monto', e.target.value)}
+                  value={monto}
+                  onChange={(e) => setMonto(e.target.value)}
                 />
+                {errores.monto && <span className="text-label text-alert-max px-1">{errores.monto}</span>}
+              </div>
+
+              <div className="flex flex-col gap-1.5 w-full">
                 <Input
                   label="Fecha"
                   type="date"
-                  value={gasto.fecha}
-                  onChange={(e) => actualizarCampoDeGasto(gasto.id, 'fecha', e.target.value)}
+                  value={fecha}
+                  onChange={(e) => setFecha(e.target.value)}
                 />
+                {errores.fecha && <span className="text-label text-alert-max px-1">{errores.fecha}</span>}
               </div>
             </div>
           </div>
-        ))}
+        </div>
 
         {/* Acciones del formulario */}
         <div className="flex flex-col gap-4 items-center pt-2">

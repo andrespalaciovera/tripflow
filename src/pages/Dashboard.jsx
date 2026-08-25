@@ -272,7 +272,8 @@ export const Dashboard = () => {
           <section className="flex flex-col gap-6">
             <div className="flex justify-between items-center">
               <h2 className="text-h3 font-display text-ink-primary">Gastos recientes</h2>
-              {!mostrarFormularioGastos && (
+              {/* AGENTS.md §6: este panel solo tiene sentido para el viaje Activo */}
+              {!mostrarFormularioGastos && viajeActivo && (
                 <Button variant="secondary" onClick={() => setMostrarFormularioGastos(true)}>
                   Agregar gastos
                 </Button>
@@ -280,12 +281,13 @@ export const Dashboard = () => {
             </div>
 
             {/* Panel de "Agregar gastos": oculto por defecto, un solo bloque de gasto.
-                Sin wiring a store.js todavía: onGuardar/onCancelar solo colapsan el panel. */}
-            {mostrarFormularioGastos && (
+                Guarda el gasto por su cuenta (saveExpense); onGuardar solo nos avisa para
+                refrescar los datos derivados (lista de gastos y presupuesto del viaje Activo). */}
+            {mostrarFormularioGastos && viajeActivo && (
               <AddExpensesForm
-                onGuardar={(gastos) => {
-                  // TODO: persistir con saveExpense() en un paso posterior
-                  console.log('Gastos a guardar (pendiente de conectar a store.js):', gastos);
+                tripId={viajeActivo.id}
+                onGuardar={() => {
+                  recargarViajes();
                   setMostrarFormularioGastos(false);
                 }}
                 onCancelar={() => setMostrarFormularioGastos(false)}
