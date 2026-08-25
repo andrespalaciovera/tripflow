@@ -15,6 +15,7 @@
    * @param {Object}   props                  - Propiedades del componente
    * @param {boolean}  props.hasAnyTrips      - Indica si el usuario tiene algún viaje
    * @param {boolean}  props.hasActiveTrip    - Indica si existe un viaje Activo
+   * @param {boolean}  props.hideBar          - Cuando true, la barra se desliza fuera del viewport
    * @param {Function} props.onAddExpense     - Abre el formulario de agregar gastos
    * @param {Function} props.onNewTrip        - Abre el drawer de nuevo viaje
    * @param {boolean}  props.isCop            - Estado actual del interruptor de moneda
@@ -23,17 +24,25 @@
   const MobileBottomBar = ({
     hasAnyTrips,
     hasActiveTrip,
+    hideBar = false,
     onAddExpense,
     onNewTrip,
     isCop,
     onCurrencyChange,
   }) => {
+    // Sin viajes: la barra no existe en absoluto (el onboarding tiene su propio CTA)
     if (!hasAnyTrips) return null;
 
     return (
       // pb-safe usa padding-bottom seguro en dispositivos con home bar (iOS/Android).
       // z-40 para quedar por encima del contenido normal pero debajo del drawer (z-50).
-      <div className="fixed bottom-0 left-0 w-full z-40 bg-bg-body border-t border-stroke-form p-4 md:hidden pb-safe">
+      // translate-y-full desliza la barra completamente fuera del viewport hacia abajo;
+      // translate-y-0 la devuelve a su posición normal. La transición es suave (300 ms).
+      <div
+        className={`fixed bottom-0 left-0 w-full z-40 bg-bg-body border-t border-stroke-form p-4 md:hidden pb-safe
+          transition-transform duration-300 ease-in-out
+          ${hideBar ? 'translate-y-full' : 'translate-y-0'}`}
+      >
         {hasActiveTrip ? (
           /* ─── Caso 1: Viaje Activo ─── */
           <div className="flex justify-between items-center gap-4">
@@ -64,3 +73,4 @@
   };
 
   export default MobileBottomBar;
+
