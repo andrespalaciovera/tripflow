@@ -35,7 +35,7 @@ export const TopNavbar = ({
 
   return (
     <nav
-      className={`w-full flex justify-between items-center bg-bg-navbar-forms px-4 py-4 md:px-6 border-b border-stroke-form ${className}`}
+      className={`w-full flex justify-between items-center bg-bg-navbar-forms px-4 py-4 md:px-6 ${className}`}
     >
       {/* Logotipo de la aplicación */}
       <span className="font-display text-h2 text-ink-primary select-none">
