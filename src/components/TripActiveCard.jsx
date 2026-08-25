@@ -173,7 +173,7 @@ export const TripActiveCard = ({ trip, totalGastado, mostrarEnCop = true, onFina
             <div className="relative w-20 h-20 shrink-0">
               <svg viewBox="0 0 80 80" className="w-20 h-20 -rotate-90">
                 {/* Pista de fondo */}
-                <circle cx="40" cy="40" r={radio} fill="none" strokeWidth="8" className="stroke-bg-surface" />
+                <circle cx="40" cy="40" r={radio} fill="none" strokeWidth="8" className="stroke-overlay-w" />
                 {/* Progreso de gasto */}
                 <circle
                   cx="40"
@@ -281,7 +281,7 @@ export const TripActiveCard = ({ trip, totalGastado, mostrarEnCop = true, onFina
                 r={radio}
                 fill="none"
                 strokeWidth="8"
-                className="stroke-bg-surface"
+                className="stroke-overlay-w"
               />
               {/* Progreso de gasto */}
               <circle
@@ -318,7 +318,7 @@ export const TripActiveCard = ({ trip, totalGastado, mostrarEnCop = true, onFina
           </p>
 
           {/* Barra de progreso lineal de días transcurridos */}
-          <div className="bg-overlay-white h-3 rounded-full w-full overflow-hidden">
+          <div className="bg-overlay-w h-3 rounded-full w-full overflow-hidden">
             <div
               className="bg-status-activo-text h-full rounded-full transition-all duration-500 ease-in-out"
               style={{ width: `${porcentajeDias}%` }}
@@ -328,7 +328,7 @@ export const TripActiveCard = ({ trip, totalGastado, mostrarEnCop = true, onFina
       </div>
 
       {/* Sección inferior: gasto diario disponible (tarjeta blanca de solo texto) */}
-      <div className="bg-overlay-white rounded-xs p-3">
+      <div className="bg-overlay-w rounded-xs p-3">
         <p className="text-body font-body text-ink-primary">Cada día restante puedes gastar</p>
         <p className="text-h3 font-display text-ink-primary mt-1">
           {formatearMontoSegunModoMoneda(presupuestoDiarioRestante, destino, mostrarEnCop)}

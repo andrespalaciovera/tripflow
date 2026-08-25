@@ -35,7 +35,7 @@ export default {
         'alert-medium': '#ECCD7F',
         'alert-max': '#E29683',
 
-        'overlay-white': 'rgba(255, 255, 255, 0.4)'
+        'overlay-w': 'rgba(255, 255, 255, 0.4)'
       },
       borderRadius: {
         'xs': '8px',

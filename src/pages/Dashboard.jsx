@@ -247,6 +247,7 @@ export const Dashboard = () => {
       <TopNavbar
         onCurrencyChange={setMostrarEnCop}
         onNewTrip={() => setIsNewTripDrawerOpen(true)}
+        hasTrips={viajes.length > 0}
       />
 
       <main className="flex-1 w-full max-w-6xl mx-auto px-4 md:px-6 py-8 md:py-10">
@@ -254,7 +255,10 @@ export const Dashboard = () => {
           <div className="flex flex-col items-center justify-center flex-1 h-full min-h-[60vh] text-center px-4">
             <h1 className="text-h1 font-display text-ink-primary mb-4">Buenos días ☀️</h1>
             <h2 className="text-h2 font-display text-ink-primary mb-2">Aun no tienes viajes planeados</h2>
-            <p className="text-body font-body text-ink-muted max-w-md">Crea tu primer viaje para empezar a controlar tu presupuesto y organizar tus gastos de forma sencilla.</p>
+            <p className="text-body font-body text-ink-muted max-w-md mb-6">Crea tu primer viaje para empezar a controlar tu presupuesto y organizar tus gastos de forma sencilla.</p>
+            <Button variant="primary" onClick={() => setIsNewTripDrawerOpen(true)}>
+              Programar viaje
+            </Button>
           </div>
         ) : (
           <>
