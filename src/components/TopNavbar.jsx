@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import CurrencySwitch from './CurrencySwitch';
+import Button from './Button';
 
 /**
  * Componente de Barra de Navegación Superior (TopNavbar) para Tripflow.
@@ -13,6 +14,7 @@ import CurrencySwitch from './CurrencySwitch';
  */
 export const TopNavbar = ({
   onCurrencyChange,
+  onNewTrip,
   defaultIsCop = true,
   className = '',
 }) => {
@@ -35,10 +37,13 @@ export const TopNavbar = ({
         Tripflow
       </span>
 
-      {/* Interruptor de moneda: solo visible en escritorio.
-          En móvil lo gestiona MobileBottomBar. */}
-      <div className="hidden md:flex">
+      {/* Acciones derechas: solo visibles en escritorio.
+          En móvil, MobileBottomBar asume ambas funciones. */}
+      <div className="hidden md:flex items-center gap-4">
         <CurrencySwitch activo={esCop} alCambiar={manejarCambioMoneda} />
+        <Button variant="primary" onClick={onNewTrip}>
+          + Nuevo viaje
+        </Button>
       </div>
     </nav>
   );

@@ -5,11 +5,12 @@ import TripActiveCard from '../components/TripActiveCard';
 import TripComingCard from '../components/TripComingCard';
 import TripCompletedCard from '../components/TripCompletedCard';
 import ExpenseRow from '../components/ExpenseRow';
-import AddExpensesForm from '../components/AddExpensesForm';
+import ResponsiveExpenseWrapper from '../components/ResponsiveExpenseWrapper';
 import NewTripDrawer from '../components/NewTripDrawer';
 import MobileBottomBar from '../components/MobileBottomBar';
 import MobileSlider from '../components/MobileSlider';
-import { getTrips, getExpenses, saveTrip, resetAllData } from '../lib/store';
+import ConfirmationModal from '../components/ConfirmationModal';
+import { getTrips, getExpenses, saveTrip, deleteTrip, resetAllData } from '../lib/store';
 import {
   calcularEstadoViaje,
   calcularTotalGastadoEnCop,
@@ -67,12 +68,35 @@ export const Dashboard = () => {
   const bottomButtonRef = useRef(null);
   const [isBottomButtonVisible, setIsBottomButtonVisible] = useState(false);
 
+  // Estado para controlar qué viaje está seleccionado para eliminarse.
+  // Si es null, el modal de confirmación está cerrado.
+  const [tripToDelete, setTripToDelete] = useState(null);
+
   /** Vuelve a leer la lista de viajes desde el store (fuente de verdad) */
   const recargarViajes = () => setViajes(getTrips());
 
   /** Vuelve a leer los gastos del viaje Activo desde el store (fuente de verdad) */
   const recargarGastosDelViajeActivo = (tripId) => {
     setActiveTripExpenses(tripId ? getExpenses(tripId) : []);
+  };
+
+  /**
+   * Abre el modal de confirmación fijando el ID del viaje objetivo.
+   */
+  const promptDeleteTrip = (tripId) => {
+    setTripToDelete(tripId);
+  };
+
+  /**
+   * Ejecuta la eliminación real del viaje, habiendo sido confirmada
+   * por el usuario a través del modal.
+   */
+  const confirmDeleteTrip = () => {
+    if (tripToDelete) {
+      deleteTrip(tripToDelete);
+      recargarViajes();
+      setTripToDelete(null);
+    }
   };
 
   // El viaje "Activo" (AGENTS.md §3: solo puede haber uno) determina qué
@@ -198,8 +222,7 @@ export const Dashboard = () => {
             presupuesto: viaje.presupuesto_total,
             fechaInicio: viaje.fecha_inicio,
           }}
-          // TODO: persistir el borrado en store.js (deleteTrip) en un paso posterior
-          onDelete={(id) => console.log('Eliminar viaje (pendiente de conectar a store.js):', id)}
+          onDelete={promptDeleteTrip}
         />
       );
     }
@@ -220,26 +243,24 @@ export const Dashboard = () => {
 
   return (
     <div className="min-h-screen w-full bg-bg-body font-body text-ink-primary flex flex-col">
-      {/* Barra de navegación superior: logo + interruptor de moneda, sin enlaces de navegación */}
-      <TopNavbar onCurrencyChange={setMostrarEnCop} />
+      {/* Barra de navegación superior: logo + acciones globales (interruptor, nuevo viaje) */}
+      <TopNavbar
+        onCurrencyChange={setMostrarEnCop}
+        onNewTrip={() => setIsNewTripDrawerOpen(true)}
+      />
 
       <main className="flex-1 w-full max-w-6xl mx-auto px-4 md:px-6 py-8 md:py-10">
         {viajes.length === 0 ? (
           <div className="flex flex-col items-center justify-center flex-1 h-full min-h-[60vh] text-center px-4">
             <h1 className="text-h1 font-display text-ink-primary mb-4">Buenos días ☀️</h1>
             <h2 className="text-h2 font-display text-ink-primary mb-2">Aun no tienes viajes planeados</h2>
-            <p className="text-body font-body text-ink-muted mb-8 max-w-md">Crea tu primer viaje para empezar a controlar tu presupuesto y organizar tus gastos de forma sencilla.</p>
-            <Button variant="primary" onClick={() => setIsNewTripDrawerOpen(true)}>Programar viaje</Button>
+            <p className="text-body font-body text-ink-muted max-w-md">Crea tu primer viaje para empezar a controlar tu presupuesto y organizar tus gastos de forma sencilla.</p>
           </div>
         ) : (
           <>
-            {/* Encabezado: saludo + acción de nuevo viaje.
-            El botón se oculta en móvil — MobileBottomBar (Caso 2) lo reemplaza. */}
-            <div className="flex flex-col md:flex-row md:flex-wrap justify-between items-stretch md:items-center gap-4 mb-8">
+            {/* Encabezado: saludo */}
+            <div className="mb-8">
               <h1 className="text-h1 font-display text-ink-primary">Buenos días ☀️</h1>
-              <Button variant="primary" className="hidden md:block w-full md:w-auto" onClick={() => setIsNewTripDrawerOpen(true)}>
-                + Nuevo viaje
-              </Button>
             </div>
 
             {/* Layout de dos columnas: viajes a la izquierda, gastos a la derecha */}
@@ -288,18 +309,19 @@ export const Dashboard = () => {
                   )}
                 </div>
 
-                {/* Panel de "Agregar gastos": oculto por defecto, un solo bloque de gasto.
+                {/* Panel de "Agregar gastos": usa un wrapper responsivo.
+                En móvil es un bottom sheet (modal), en escritorio es en línea.
                 Guarda el gasto por su cuenta (saveExpense); onGuardar dispara justo lo que
-                cambió (los gastos del viaje Activo) — no la lista de viajes completa, que
-                no se vio afectada por agregar un gasto. */}
-                {mostrarFormularioGastos && viajeActivo && (
-                  <AddExpensesForm
+                cambió (los gastos del viaje Activo) — no la lista de viajes completa. */}
+                {viajeActivo && (
+                  <ResponsiveExpenseWrapper
+                    isOpen={mostrarFormularioGastos}
+                    onClose={() => setMostrarFormularioGastos(false)}
                     trip={viajeActivo}
                     onGuardar={() => {
                       recargarGastosDelViajeActivo(viajeActivo.id);
                       setMostrarFormularioGastos(false);
                     }}
-                    onCancelar={() => setMostrarFormularioGastos(false)}
                   />
                 )}
 
@@ -396,6 +418,12 @@ export const Dashboard = () => {
       >
         🗑 Reset all data (dev)
       </button>
+      {/* Modal de confirmación para eliminar viaje */}
+      <ConfirmationModal
+        isOpen={!!tripToDelete}
+        onClose={() => setTripToDelete(null)}
+        onConfirm={confirmDeleteTrip}
+      />
     </div>
   );
 };
