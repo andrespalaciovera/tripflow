@@ -7,6 +7,7 @@ import TripCompletedCard from '../components/TripCompletedCard';
 import ExpenseRow from '../components/ExpenseRow';
 import AddExpensesForm from '../components/AddExpensesForm';
 import NewTripDrawer from '../components/NewTripDrawer';
+import MobileBottomBar from '../components/MobileBottomBar';
 import { getTrips, getExpenses, saveTrip, resetAllData } from '../lib/store';
 import {
   calcularEstadoViaje,
@@ -101,10 +102,11 @@ export const Dashboard = () => {
       <TopNavbar onCurrencyChange={setMostrarEnCop} />
 
       <main className="flex-1 w-full max-w-6xl mx-auto px-4 md:px-6 py-8 md:py-10">
-        {/* Encabezado: saludo + acción de nuevo viaje */}
+        {/* Encabezado: saludo + acción de nuevo viaje.
+            El botón se oculta en móvil — MobileBottomBar (Caso 2) lo reemplaza. */}
         <div className="flex flex-col md:flex-row md:flex-wrap justify-between items-stretch md:items-center gap-4 mb-8">
           <h1 className="text-h1 font-display text-ink-primary">Buenos días ☀️</h1>
-          <Button variant="primary" className="w-full md:w-auto" onClick={() => setIsNewTripDrawerOpen(true)}>
+          <Button variant="primary" className="hidden md:block w-full md:w-auto" onClick={() => setIsNewTripDrawerOpen(true)}>
             + Nuevo viaje
           </Button>
         </div>
@@ -112,10 +114,17 @@ export const Dashboard = () => {
         {/* Layout de dos columnas: viajes a la izquierda, gastos a la derecha */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
           {/* Columna izquierda: "Tus viajes" — un card por viaje, según su estado derivado */}
-          <section className="flex flex-col gap-6">
+          <section className="flex flex-col gap-6 min-h-[50vh] md:min-h-[400px]">
             <h2 className="text-h3 font-display text-ink-primary">Tus viajes</h2>
 
-            {viajes.map((viaje) => {
+            {/* Estado vacío: se muestra cuando aún no existe ningún viaje en el store */}
+            {viajes.length === 0 ? (
+              <div className="flex flex-col items-center justify-center flex-1 h-full border-2 border-dashed border-stroke-form rounded-lg p-8 mt-4">
+                <p className="text-body font-body text-ink-muted text-center">
+                  No has creado ningún viaje aún.
+                </p>
+              </div>
+            ) : viajes.map((viaje) => {
               const estado = calcularEstadoViaje(viaje);
 
               if (estado === 'activo') {
@@ -181,12 +190,13 @@ export const Dashboard = () => {
           </section>
 
           {/* Columna derecha: "Gastos recientes" del viaje Activo + panel para agregar */}
-          <section className="flex flex-col gap-6">
+          <section className="flex flex-col gap-6 min-h-[50vh] md:min-h-[400px]">
             <div className="flex justify-between items-center">
               <h2 className="text-h3 font-display text-ink-primary">Gastos recientes</h2>
-              {/* AGENTS.md §6: este panel solo tiene sentido para el viaje Activo */}
+              {/* AGENTS.md §6: este panel solo tiene sentido para el viaje Activo.
+                  Se oculta en móvil porque MobileBottomBar (Caso 1) activa el mismo panel. */}
               {!mostrarFormularioGastos && viajeActivo && (
-                <Button variant="secondary" onClick={() => setMostrarFormularioGastos(true)}>
+                <Button variant="secondary" className="hidden md:block" onClick={() => setMostrarFormularioGastos(true)}>
                   Agregar gastos
                 </Button>
               )}
@@ -212,28 +222,51 @@ export const Dashboard = () => {
                 gasto.monto está en la moneda local del viaje: se convierte a COP
                 primero y formatearMontoSegunModoMoneda decide, según el interruptor,
                 si se muestra así o se vuelve a convertir a la moneda local para mostrar. */}
-            <div className="flex flex-col gap-3">
-              {activeTripExpenses.map((gasto) => (
-                <ExpenseRow
-                  key={gasto.id}
-                  description={gasto.titulo}
-                  amount={formatearMontoSegunModoMoneda(
-                    convertirLocalACOP(gasto.monto, viajeActivo.pais),
-                    viajeActivo.pais,
-                    mostrarEnCop
-                  )}
-                  relativeTime={formatearTiempoRelativo(gasto.creado_en)}
-                  riskLevel={calcularNivelRiesgoGasto(
-                    gasto.monto,
-                    viajeActivo.pais,
-                    presupuestoDiarioFijoDelActivo
-                  )}
-                />
-              ))}
-            </div>
+            {activeTripExpenses.length === 0 ? (
+              /* Estado vacío: sin gastos registrados para el viaje Activo */
+              <div className="flex flex-col items-center justify-center h-full min-h-[200px] border-2 border-dashed border-stroke-form rounded-lg p-8">
+                <p className="text-body font-body text-ink-muted text-center">
+                  No se ha agregado ningún gasto.
+                </p>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-3">
+                {activeTripExpenses.map((gasto) => (
+                  <ExpenseRow
+                    key={gasto.id}
+                    description={gasto.titulo}
+                    amount={formatearMontoSegunModoMoneda(
+                      convertirLocalACOP(gasto.monto, viajeActivo.pais),
+                      viajeActivo.pais,
+                      mostrarEnCop
+                    )}
+                    relativeTime={formatearTiempoRelativo(gasto.creado_en)}
+                    riskLevel={calcularNivelRiesgoGasto(
+                      gasto.monto,
+                      viajeActivo.pais,
+                      presupuestoDiarioFijoDelActivo
+                    )}
+                  />
+                ))}
+              </div>
+            )}
           </section>
         </div>
+        {/* Botón móvil "+ Nuevo viaje" — solo cuando hay un viaje Activo.
+            En ese caso MobileBottomBar (Caso 1) ocupa el espacio inferior con
+            "Agregar gastos", así que este botón secundario ofrece la alternativa
+            de crear un nuevo viaje, justo antes del footer. */}
+        {viajeActivo && (
+          <Button
+            variant="secondary"
+            className="w-full md:hidden mb-6"
+            onClick={() => setIsNewTripDrawerOpen(true)}
+          >
+            + Nuevo viaje
+          </Button>
+        )}
       </main>
+
 
       {/* Pie de página */}
       <footer className="w-full bg-bg-navbar-forms border-t border-stroke-form mt-12">
@@ -258,6 +291,17 @@ export const Dashboard = () => {
           </nav>
         </div>
       </footer>
+
+      {/* Barra de acciones fija en la parte inferior — solo móvil (md:hidden).
+          Caso 1 (viajeActivo): botón "Agregar gastos" + interruptor de moneda.
+          Caso 2 (sin viajeActivo): botón "Agregar nuevo viaje" a ancho completo. */}
+      <MobileBottomBar
+        hasActiveTrip={!!viajeActivo}
+        onAddExpense={() => setMostrarFormularioGastos(true)}
+        onNewTrip={() => setIsNewTripDrawerOpen(true)}
+        isCop={mostrarEnCop}
+        onCurrencyChange={() => setMostrarEnCop((prev) => !prev)}
+      />
 
       {/* Drawer "Nuevo viaje": oculto por defecto, se superpone sobre el dashboard atenuado.
           NewTripDrawer ya guarda el viaje en store.js por su cuenta; onSave solo nos avisa
