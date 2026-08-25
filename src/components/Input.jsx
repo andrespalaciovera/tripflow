@@ -57,7 +57,7 @@ export const Input = ({
           onChange={onChange}
           disabled={disabled}
           placeholder={placeholder}
-          className="w-full bg-transparent outline-none border-none p-0 text-body font-body text-ink-primary placeholder:text-ink-muted disabled:cursor-not-allowed"
+          className="w-full bg-transparent outline-none border-none p-0 text-body font-body text-ink-primary placeholder:text-ink-muted disabled:cursor-not-allowed [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
           {...restoProps}
         />
       </div>

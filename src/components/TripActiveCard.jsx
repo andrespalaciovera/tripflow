@@ -241,13 +241,17 @@ export const TripActiveCard = ({ trip, totalGastado, mostrarEnCop = true, onFina
       {/* Encabezado: Badge de estado y acción de finalizar */}
       <div className="flex justify-between items-center mb-5">
         <StatusBadge status="activo" />
-        {/* Nota: "success-outline" corresponde a la variante 'tertiary' de Button.jsx */}
-        <Button variant="tertiary" onClick={() => setMostrarConfirmacion(true)} className="gap-2">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
+        {/* Botón de finalizar como enlace sutil */}
+        <button 
+          type="button" 
+          onClick={() => setMostrarConfirmacion(true)} 
+          className="flex items-center gap-1.5 text-label font-body font-semibold text-status-activo-text transition-all hover:underline hover:opacity-80 focus:outline-none"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
             <rect x="4" y="4" width="16" height="16" rx="4" />
           </svg>
           Finalizar viaje
-        </Button>
+        </button>
       </div>
 
       {/* Título: Destino a la izquierda, Motivo alineado a la derecha */}
