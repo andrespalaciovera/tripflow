@@ -1,0 +1,53 @@
+<!-- TEMP: manual test page, delete before final submission -->
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>TEMP — Prueba manual /api/exchange-rate</title>
+  </head>
+  <body>
+    <h1>TEMP: Prueba manual de /api/exchange-rate</h1>
+    <p>
+      Página descartable, no enlazada desde la app real. Solo para probar el endpoint
+      bajo <code>wrangler pages dev</code>.
+    </p>
+
+    <label for="input-base">Moneda base:</label>
+    <input id="input-base" type="text" value="COP" />
+    <button id="btn-probar" type="button">Probar</button>
+
+    <p id="estado"></p>
+
+    <pre id="resultado"></pre>
+
+    <script>
+      const inputBase = document.getElementById('input-base');
+      const btnProbar = document.getElementById('btn-probar');
+      const estado = document.getElementById('estado');
+      const resultado = document.getElementById('resultado');
+
+      btnProbar.addEventListener('click', async () => {
+        const base = inputBase.value.trim().toUpperCase() || 'COP';
+        resultado.textContent = '';
+        estado.textContent = `Consultando /api/exchange-rate?base=${base}...`;
+        btnProbar.disabled = true;
+
+        try {
+          const inicio = Date.now();
+          const respuesta = await fetch(`/api/exchange-rate?base=${encodeURIComponent(base)}`);
+          const duracionMs = Date.now() - inicio;
+
+          const cuerpo = await respuesta.json();
+          estado.textContent = `Listo (status ${respuesta.status}, ${duracionMs}ms).`;
+          resultado.textContent = JSON.stringify(cuerpo, null, 2);
+        } catch (error) {
+          estado.textContent = 'Error al llamar al endpoint.';
+          resultado.textContent = String(error);
+        } finally {
+          btnProbar.disabled = false;
+        }
+      });
+    </script>
+  </body>
+</html>
