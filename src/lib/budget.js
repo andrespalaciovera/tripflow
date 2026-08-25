@@ -256,11 +256,100 @@ export const TASAS_CONVERSION_COP = {
   Italia: 4300,
 };
 
+// --- Tasas de cambio en vivo (ExchangeRate-API vía /api/exchange-rate) ------
+// Capa opcional por ENCIMA de TASAS_CONVERSION_COP, no un reemplazo: si hay
+// una tasa viva cacheada y vigente para la moneda del país, se usa; si no
+// (fetch todavía no resuelve, falló, dio timeout, o la moneda no vino en la
+// respuesta), se cae a TASAS_CONVERSION_COP exactamente como antes de este
+// cambio. Ningún fallo de esta capa se muestra al usuario — como mucho un
+// console.warn para debugging (spec del spike de integración).
+//
+// convertirLocalACOP/convertirCOPaLocal deben seguir siendo SÍNCRONAS (mismo
+// contrato que antes: reciben número, devuelven número, sin Promise) — por
+// eso esta capa nunca hace `await` dentro de ellas. En su lugar, dispara un
+// fetch en segundo plano que solo repuebla la caché para la SIGUIENTE
+// conversión; la conversión en curso usa lo que ya esté cacheado (o cae al
+// fallback fijo) en este mismo instante, sin bloquear ni esperar la red.
+const DURACION_CACHE_TASAS_VIVAS_MS = 60 * 60 * 1000; // 1 hora
+const TIMEOUT_FETCH_TASAS_VIVAS_MS = 5000;
+
+let _cacheTasasVivas = null; // { USD, MXN, EUR } (formato de /api/exchange-rate) o null si nunca se obtuvo
+let _cacheTasasVivasTimestamp = 0;
+let _fetchTasasVivasEnCurso = null; // Promise en vuelo, evita disparar fetches duplicados en paralelo
+
+const _tasasVivasVigentes = () =>
+  _cacheTasasVivas !== null && Date.now() - _cacheTasasVivasTimestamp < DURACION_CACHE_TASAS_VIVAS_MS;
+
+/**
+ * Dispara (si hace falta) una actualización en segundo plano de la caché de
+ * tasas vivas. No bloquea al llamador ni cambia su valor de retorno — ver
+ * nota de sincronía arriba.
+ */
+const _refrescarTasasVivasEnSegundoPlano = () => {
+  if (_tasasVivasVigentes() || _fetchTasasVivasEnCurso || typeof fetch !== 'function') return;
+
+  let timeoutId;
+  try {
+    const controlador = new AbortController();
+    timeoutId = setTimeout(() => controlador.abort(), TIMEOUT_FETCH_TASAS_VIVAS_MS);
+
+    _fetchTasasVivasEnCurso = fetch('/api/exchange-rate?base=COP', { signal: controlador.signal })
+      .then((respuesta) => {
+        if (!respuesta.ok) throw new Error(`status ${respuesta.status}`);
+        return respuesta.json();
+      })
+      .then((datos) => {
+        if (!datos || typeof datos !== 'object') throw new Error('respuesta inválida');
+        _cacheTasasVivas = datos;
+        _cacheTasasVivasTimestamp = Date.now();
+      })
+      .catch((error) => {
+        console.warn(`Tasas de cambio en vivo no disponibles, usando tasas fijas: ${error.message}`);
+      })
+      .finally(() => {
+        clearTimeout(timeoutId);
+        _fetchTasasVivasEnCurso = null;
+      });
+  } catch (error) {
+    // Entornos sin AbortController/fetch completo (ej. Node en los
+    // console.assert de más abajo): no debe tumbar el módulo, solo avisar.
+    clearTimeout(timeoutId);
+    console.warn(`Tasas de cambio en vivo no disponibles, usando tasas fijas: ${error.message}`);
+  }
+};
+
+/**
+ * Tasa efectiva (cuántos COP equivalen a 1 unidad de moneda local) para un
+ * país: prioriza la tasa viva cacheada si está vigente y la respuesta trajo
+ * la moneda de ese país; si no, cae a la tabla fija `tasas` — mismo
+ * comportamiento que antes de esta capa.
+ * @param {string} pais
+ * @param {Record<string, number>} tasas - Tabla fija a usar como fallback
+ * @returns {number|undefined} Tasa a usar, o undefined si el país no está en ninguna fuente
+ */
+const _obtenerTasaEfectiva = (pais, tasas) => {
+  _refrescarTasasVivasEnSegundoPlano();
+
+  if (_tasasVivasVigentes()) {
+    // /api/exchange-rate devuelve "1 COP = X <moneda>" (base=COP) — se
+    // invierte para obtener "1 <moneda> = Y COP", la misma dirección que
+    // TASAS_CONVERSION_COP.
+    const monedaViva = _cacheTasasVivas[derivarMonedaDesdePais(pais)];
+    if (typeof monedaViva === 'number' && monedaViva > 0) {
+      return 1 / monedaViva;
+    }
+  }
+
+  return tasas[pais];
+};
+
 /**
  * Convierte un monto en la moneda LOCAL de un país a COP (multiplica por la
- * tasa), usando tasas fijas (MVP). Si el país no está en la tabla, se asume
- * tasa 1 y se registra un console.warn para que un país mal escrito o
- * faltante no pase inadvertido en desarrollo.
+ * tasa). Usa la tasa viva cacheada de ExchangeRate-API cuando está vigente y
+ * disponible para ese país; si no, tasas fijas (MVP) — ver
+ * `_obtenerTasaEfectiva`. Si el país no está en ninguna fuente, se asume tasa
+ * 1 y se registra un console.warn para que un país mal escrito o faltante no
+ * pase inadvertido en desarrollo.
  *
  * Dirección confirmada en TASAS_CONVERSION_COP: "1 unidad de moneda local =
  * tasa COP" (ej. 1 EUR = 4300 COP) — por eso esta conversión multiplica.
@@ -270,11 +359,11 @@ export const TASAS_CONVERSION_COP = {
  *
  * @param {number} montoLocal - Monto en la moneda local del país
  * @param {string} pais - Nombre exacto del país (ver TASAS_CONVERSION_COP)
- * @param {Record<string, number>} [tasas=TASAS_CONVERSION_COP] - Tabla de tasas a usar
+ * @param {Record<string, number>} [tasas=TASAS_CONVERSION_COP] - Tabla de tasas a usar como fallback
  * @returns {number} Monto equivalente en COP
  */
 export const convertirLocalACOP = (montoLocal, pais, tasas = TASAS_CONVERSION_COP) => {
-  const tasa = tasas[pais];
+  const tasa = _obtenerTasaEfectiva(pais, tasas);
 
   if (tasa === undefined) {
     console.warn(`convertirLocalACOP: país "${pais}" no encontrado en la tabla de tasas, usando tasa 1.`);
@@ -286,17 +375,18 @@ export const convertirLocalACOP = (montoLocal, pais, tasas = TASAS_CONVERSION_CO
 
 /**
  * Convierte un monto en COP a la moneda LOCAL de un país (divide por la
- * tasa) — la conversión inversa de convertirLocalACOP. Usada, por ejemplo,
+ * tasa) — la conversión inversa de convertirLocalACOP, con la misma capa de
+ * tasa viva + fallback fijo (ver `_obtenerTasaEfectiva`). Usada, por ejemplo,
  * para la vista previa de NewTripDrawer ("a cuánto equivale este presupuesto
  * en COP dentro de la moneda del destino").
  *
  * @param {number} montoCOP - Monto en COP
  * @param {string} pais - Nombre exacto del país (ver TASAS_CONVERSION_COP)
- * @param {Record<string, number>} [tasas=TASAS_CONVERSION_COP] - Tabla de tasas a usar
+ * @param {Record<string, number>} [tasas=TASAS_CONVERSION_COP] - Tabla de tasas a usar como fallback
  * @returns {number} Monto equivalente en la moneda local del país
  */
 export const convertirCOPaLocal = (montoCOP, pais, tasas = TASAS_CONVERSION_COP) => {
-  const tasa = tasas[pais];
+  const tasa = _obtenerTasaEfectiva(pais, tasas);
 
   if (tasa === undefined) {
     console.warn(`convertirCOPaLocal: país "${pais}" no encontrado en la tabla de tasas, usando tasa 1.`);
