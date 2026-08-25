@@ -8,6 +8,7 @@ import ExpenseRow from '../components/ExpenseRow';
 import AddExpensesForm from '../components/AddExpensesForm';
 import NewTripDrawer from '../components/NewTripDrawer';
 import MobileBottomBar from '../components/MobileBottomBar';
+import MobileSlider from '../components/MobileSlider';
 import { getTrips, getExpenses, saveTrip, resetAllData } from '../lib/store';
 import {
   calcularEstadoViaje,
@@ -121,6 +122,102 @@ export const Dashboard = () => {
     return () => observador.disconnect();
   }, [viajeActivo?.id]);
 
+  // Ordenamiento de viajes por prioridad (AGENTS.md §3 + requisito de producto):
+  //   1. Activo primero (solo puede haber uno, pero se ordena igual por consistencia).
+  //   2. Próximos: ascendente por fecha_inicio — el más cercano al top.
+  //   3. Finalizados: descendente por fecha_fin — el más reciente al top.
+  // Se hace sobre una copia (.slice()) para no mutar el array original del estado.
+  const PRIORIDAD_ESTADO = { activo: 0, proximo: 1, finalizado: 2 };
+  const viajesOrdenados = viajes.slice().sort((a, b) => {
+    const estadoA = calcularEstadoViaje(a);
+    const estadoB = calcularEstadoViaje(b);
+    const prioridadA = PRIORIDAD_ESTADO[estadoA];
+    const prioridadB = PRIORIDAD_ESTADO[estadoB];
+
+    // Primero ordenar por grupo de estado
+    if (prioridadA !== prioridadB) return prioridadA - prioridadB;
+
+    // Dentro de "proximo": ascendente por fecha_inicio (el más próximo primero)
+    if (estadoA === 'proximo') {
+      return a.fecha_inicio.localeCompare(b.fecha_inicio);
+    }
+
+    // Dentro de "finalizado": descendente por fecha_fin (el más reciente primero)
+    if (estadoA === 'finalizado') {
+      return b.fecha_fin.localeCompare(a.fecha_fin);
+    }
+
+    return 0;
+  });
+
+  // Tarjetas de viaje ordenadas por prioridad, listas para renderizar.
+  // Se computan aquí (fuera del return) para poder reutilizarlas tanto en
+  // el MobileSlider (móvil) como en la columna vertical (escritorio) sin
+  // duplicar la lógica de mapeo ni llamar a calcularEstadoViaje dos veces.
+  const tarjetasDeViajes = viajesOrdenados.map((viaje) => {
+    const estado = calcularEstadoViaje(viaje);
+
+    if (estado === 'activo') {
+      // Misma fuente que "Gastos recientes" (activeTripExpenses): nunca una
+      // segunda lectura aparte que solo "coincida por casualidad". Cada
+      // gasto está en su propia moneda local (AGENTS.md §3) — se convierte
+      // a COP antes de sumar, nunca se suman los "monto" crudos.
+      const totalGastadoViaje = calcularTotalGastadoEnCop(activeTripExpenses, viaje.pais);
+      return (
+        <TripActiveCard
+          key={viaje.id}
+          trip={{
+            destino: viaje.nombre,
+            motivo: viaje.motivo,
+            presupuestoTotal: viaje.presupuesto_total,
+            fechaInicio: viaje.fecha_inicio,
+            fechaFin: viaje.fecha_fin,
+          }}
+          totalGastado={totalGastadoViaje}
+          mostrarEnCop={mostrarEnCop}
+          // Se dispara al presionar "Continuar" en el reporte final (ver TripActiveCard.jsx):
+          // persiste finalizado_manualmente: true sobre el registro completo del store (para
+          // no perder ningún campo) y refresca la lista, para que el estado sobreviva a un reload.
+          onFinalizar={() => {
+            saveTrip({ ...viaje, finalizado_manualmente: true });
+            recargarViajes();
+          }}
+          onCalcularPago={() => console.log('Calcula si puedes pagarlo')}
+        />
+      );
+    }
+
+    if (estado === 'proximo') {
+      return (
+        <TripComingCard
+          key={viaje.id}
+          trip={{
+            id: viaje.id,
+            destino: viaje.nombre,
+            motivo: viaje.motivo,
+            presupuesto: viaje.presupuesto_total,
+            fechaInicio: viaje.fecha_inicio,
+          }}
+          // TODO: persistir el borrado en store.js (deleteTrip) en un paso posterior
+          onDelete={(id) => console.log('Eliminar viaje (pendiente de conectar a store.js):', id)}
+        />
+      );
+    }
+
+    // estado === 'finalizado' — mismo cuidado: convertir a COP antes de sumar
+    const totalGastadoViaje = calcularTotalGastadoEnCop(getExpenses(viaje.id), viaje.pais);
+    return (
+      <TripCompletedCard
+        key={viaje.id}
+        trip={{
+          destino: viaje.nombre,
+          presupuestoTotal: viaje.presupuesto_total,
+        }}
+        totalGastado={totalGastadoViaje}
+      />
+    );
+  });
+
   return (
     <div className="min-h-screen w-full bg-bg-body font-body text-ink-primary flex flex-col">
       {/* Barra de navegación superior: logo + interruptor de moneda, sin enlaces de navegación */}
@@ -147,80 +244,35 @@ export const Dashboard = () => {
 
             {/* Layout de dos columnas: viajes a la izquierda, gastos a la derecha */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
-              {/* Columna izquierda: "Tus viajes" — un card por viaje, según su estado derivado */}
-              <section className="flex flex-col gap-6 min-h-[50vh] md:min-h-[400px]">
+              {/* Columna izquierda: "Tus viajes".
+               * El título vive fuera de cualquier contenedor de scroll.
+               * Móvil: MobileSlider (1 a 1 con puntos de paginación).
+               * Escritorio (md:): columna vertical clásica. */}
+              <section className="flex flex-col gap-4 md:gap-6 min-h-[50vh] md:min-h-[400px]">
                 <h2 className="text-h3 font-display text-ink-primary">Tus viajes</h2>
 
-                {/* Estado vacío: se muestra cuando aún no existe ningún viaje en el store */}
                 {viajes.length === 0 ? (
+                  /* Estado vacío: se muestra cuando aún no existe ningún viaje en el store */
                   <div className="flex flex-col items-center justify-center flex-1 h-full border-2 border-dashed border-stroke-form rounded-lg p-8 mt-4">
                     <p className="text-body font-body text-ink-muted text-center">
                       No has creado ningún viaje aún.
                     </p>
                   </div>
-                ) : viajes.map((viaje) => {
-                  const estado = calcularEstadoViaje(viaje);
+                ) : (
+                  <>
+                    {/* MÓVIL: slider estricto 1 a 1 con puntos de paginación */}
+                    <div className="w-full md:hidden">
+                      <MobileSlider>
+                        {tarjetasDeViajes}
+                      </MobileSlider>
+                    </div>
 
-                  if (estado === 'activo') {
-                    // Misma fuente que "Gastos recientes" (activeTripExpenses): nunca una
-                    // segunda lectura aparte que solo "coincida por casualidad". Cada
-                    // gasto está en su propia moneda local (AGENTS.md §3) — se convierte
-                    // a COP antes de sumar, nunca se suman los "monto" crudos.
-                    const totalGastadoViaje = calcularTotalGastadoEnCop(activeTripExpenses, viaje.pais);
-                    return (
-                      <TripActiveCard
-                        key={viaje.id}
-                        trip={{
-                          destino: viaje.nombre,
-                          motivo: viaje.motivo,
-                          presupuestoTotal: viaje.presupuesto_total,
-                          fechaInicio: viaje.fecha_inicio,
-                          fechaFin: viaje.fecha_fin,
-                        }}
-                        totalGastado={totalGastadoViaje}
-                        mostrarEnCop={mostrarEnCop}
-                        // Se dispara al presionar "Continuar" en el reporte final (ver TripActiveCard.jsx):
-                        // persiste finalizado_manualmente: true sobre el registro completo del store (para
-                        // no perder ningún campo) y refresca la lista, para que el estado sobreviva a un reload.
-                        onFinalizar={() => {
-                          saveTrip({ ...viaje, finalizado_manualmente: true });
-                          recargarViajes();
-                        }}
-                        onCalcularPago={() => console.log('Calcula si puedes pagarlo')}
-                      />
-                    );
-                  }
-
-                  if (estado === 'proximo') {
-                    return (
-                      <TripComingCard
-                        key={viaje.id}
-                        trip={{
-                          id: viaje.id,
-                          destino: viaje.nombre,
-                          motivo: viaje.motivo,
-                          presupuesto: viaje.presupuesto_total,
-                          fechaInicio: viaje.fecha_inicio,
-                        }}
-                        // TODO: persistir el borrado en store.js (deleteTrip) en un paso posterior
-                        onDelete={(id) => console.log('Eliminar viaje (pendiente de conectar a store.js):', id)}
-                      />
-                    );
-                  }
-
-                  // estado === 'finalizado' — mismo cuidado: convertir a COP antes de sumar
-                  const totalGastadoViaje = calcularTotalGastadoEnCop(getExpenses(viaje.id), viaje.pais);
-                  return (
-                    <TripCompletedCard
-                      key={viaje.id}
-                      trip={{
-                        destino: viaje.nombre,
-                        presupuestoTotal: viaje.presupuesto_total,
-                      }}
-                      totalGastado={totalGastadoViaje}
-                    />
-                  );
-                })}
+                    {/* ESCRITORIO: columna vertical con separación entre tarjetas */}
+                    <div className="hidden md:flex md:flex-col md:gap-6">
+                      {tarjetasDeViajes}
+                    </div>
+                  </>
+                )}
               </section>
 
               {/* Columna derecha: "Gastos recientes" del viaje Activo + panel para agregar */}
