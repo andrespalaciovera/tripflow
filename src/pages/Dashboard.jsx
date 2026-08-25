@@ -7,22 +7,16 @@ import TripCompletedCard from '../components/TripCompletedCard';
 import ExpenseRow from '../components/ExpenseRow';
 import AddExpensesForm from '../components/AddExpensesForm';
 import NewTripDrawer from '../components/NewTripDrawer';
-import { getTrips, saveTrip, getExpenses, saveExpense } from '../lib/store';
-import { calcularEstadoViaje } from '../lib/budget';
-
-/**
- * Formatea un número como moneda COP, sin decimales, seguido del código de moneda.
- * @param {number} valor - Monto a formatear
- * @returns {string} Monto formateado (ej. "$850.000 COP")
- */
-const formatearMoneda = (valor) => {
-  const monto = Number.isFinite(valor) ? valor : 0;
-  return `${new Intl.NumberFormat('es-CO', {
-    style: 'currency',
-    currency: 'COP',
-    maximumFractionDigits: 0,
-  }).format(monto)} COP`;
-};
+import { getTrips, getExpenses, saveTrip, resetAllData } from '../lib/store';
+import {
+  calcularEstadoViaje,
+  calcularTotalGastadoEnCop,
+  calcularDiasTotales,
+  calcularPresupuestoDiario,
+  calcularNivelRiesgoGasto,
+  convertirLocalACOP,
+  formatearMontoSegunModoMoneda,
+} from '../lib/budget';
 
 /**
  * Convierte una marca de tiempo ISO en un texto relativo corto ("hace 1h", "hace 2d").
@@ -35,126 +29,6 @@ const formatearTiempoRelativo = (creadoEnIso) => {
   if (horasTranscurridas < 24) return `hace ${Math.round(horasTranscurridas)}h`;
   return `hace ${Math.round(horasTranscurridas / 24)}d`;
 };
-
-/**
- * Nivel de riesgo visual por gasto (color de acento de ExpenseRow, alert-min/medium/max).
- * No es parte del modelo Expense — es una etiqueta puramente presentacional. Los gastos
- * semilla de más abajo tienen un valor fijo asignado; cualquier gasto real (guardado más
- * adelante desde AddExpensesForm) usa 'low' por defecto hasta que exista una regla propia.
- */
-const NIVEL_RIESGO_POR_GASTO = {
-  'exp-001': 'high',
-  'exp-002': 'low',
-  'exp-003': 'low',
-  'exp-004': 'medium',
-};
-
-// --- Datos semilla (solo si el store está vacío) ----------------------------
-// Siguen exactamente el modelo Trip/Expense de AGENTS.md §3. Se guardan una única
-// vez en /lib/store.js la primera vez que se abre el dashboard, para que la app
-// no arranque totalmente vacía — a partir de ahí, "Tus viajes" y "Gastos recientes"
-// se leen siempre del store, igual que cualquier viaje creado desde NewTripDrawer.
-
-/** Viaje "Activo" semilla: inició ayer, dura 6 días → "Día 2 de 6" */
-const viajeActivoSemilla = {
-  id: 'trip-001',
-  nombre: 'España',
-  pais: 'España',
-  moneda: 'EUR',
-  motivo: 'vacaciones',
-  fecha_inicio: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
-  fecha_fin: new Date(Date.now() + 4 * 24 * 60 * 60 * 1000).toISOString(),
-  presupuesto_total: 6500000,
-  finalizado_manualmente: false,
-};
-
-/** Viaje "Próximo" semilla: comienza en 29 días */
-const viajeProximoSemilla = {
-  id: 'trip-002',
-  nombre: 'México',
-  pais: 'México',
-  moneda: 'MXN',
-  motivo: 'negocios',
-  fecha_inicio: new Date(Date.now() + 29 * 24 * 60 * 60 * 1000).toISOString(),
-  fecha_fin: new Date(Date.now() + 34 * 24 * 60 * 60 * 1000).toISOString(),
-  presupuesto_total: 4000000,
-  finalizado_manualmente: false,
-};
-
-/** Viaje "Finalizado" semilla: terminó manualmente, por encima del presupuesto */
-const viajeFinalizadoSemilla = {
-  id: 'trip-003',
-  nombre: 'Francia',
-  pais: 'Francia',
-  moneda: 'EUR',
-  motivo: 'vacaciones',
-  fecha_inicio: new Date(Date.now() - 40 * 24 * 60 * 60 * 1000).toISOString(),
-  fecha_fin: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
-  presupuesto_total: 5000000,
-  finalizado_manualmente: true,
-};
-
-/** Gastos semilla del viaje "Activo" (mismos ejemplos usados en el frame de Figma) */
-const gastosActivoSemilla = [
-  {
-    id: 'exp-001',
-    trip_id: viajeActivoSemilla.id,
-    titulo: 'Compra en boutique',
-    monto: 850000,
-    fecha: new Date().toISOString(),
-    origen: 'manual',
-    creado_en: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(),
-  },
-  {
-    id: 'exp-002',
-    trip_id: viajeActivoSemilla.id,
-    titulo: 'Almuerzo',
-    monto: 80000,
-    fecha: new Date().toISOString(),
-    origen: 'manual',
-    creado_en: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString(),
-  },
-  {
-    id: 'exp-003',
-    trip_id: viajeActivoSemilla.id,
-    titulo: 'Taxi desde el aeropuerto',
-    monto: 96000,
-    fecha: new Date().toISOString(),
-    origen: 'manual',
-    creado_en: new Date(Date.now() - 26 * 60 * 60 * 1000).toISOString(),
-  },
-  {
-    id: 'exp-004',
-    trip_id: viajeActivoSemilla.id,
-    titulo: 'Depósito de hotel',
-    monto: 493000,
-    fecha: new Date().toISOString(),
-    origen: 'manual',
-    creado_en: new Date(Date.now() - 50 * 60 * 60 * 1000).toISOString(),
-  },
-];
-
-/** Gastos semilla del viaje "Finalizado" (suman 5.200.000: por encima del presupuesto) */
-const gastosFinalizadoSemilla = [
-  {
-    id: 'exp-005',
-    trip_id: viajeFinalizadoSemilla.id,
-    titulo: 'Hospedaje',
-    monto: 3200000,
-    fecha: viajeFinalizadoSemilla.fecha_inicio,
-    origen: 'manual',
-    creado_en: viajeFinalizadoSemilla.fecha_inicio,
-  },
-  {
-    id: 'exp-006',
-    trip_id: viajeFinalizadoSemilla.id,
-    titulo: 'Vuelos y traslados',
-    monto: 2000000,
-    fecha: viajeFinalizadoSemilla.fecha_inicio,
-    origen: 'manual',
-    creado_en: viajeFinalizadoSemilla.fecha_inicio,
-  },
-];
 
 /**
  * Dashboard — página principal de Tripflow (AGENTS.md §6: sitemap de 2 niveles).
@@ -175,28 +49,56 @@ export const Dashboard = () => {
   // Controla la visibilidad del drawer "Nuevo viaje": mismo patrón, oculto por defecto
   const [isNewTripDrawerOpen, setIsNewTripDrawerOpen] = useState(false);
 
+  // Gastos del viaje Activo: única fuente de verdad tanto para "Gastos recientes"
+  // como para el totalGastado que recibe TripActiveCard — nunca dos lecturas
+  // separadas que "coincidan por casualidad".
+  const [activeTripExpenses, setActiveTripExpenses] = useState([]);
+
+  // Interruptor "Mostrar resultados en COP" de TopNavbar (AGENTS.md §3): gobierna
+  // tanto los números de TripActiveCard como el monto mostrado en cada ExpenseRow.
+  // Arranca en true, igual que el valor por defecto de TopNavbar.
+  const [mostrarEnCop, setMostrarEnCop] = useState(true);
+
   /** Vuelve a leer la lista de viajes desde el store (fuente de verdad) */
   const recargarViajes = () => setViajes(getTrips());
 
-  // Al montar: si el store está vacío (primera visita), lo sembramos con datos
-  // de ejemplo; luego, en cualquier caso, leemos la lista real desde el store.
+  /** Vuelve a leer los gastos del viaje Activo desde el store (fuente de verdad) */
+  const recargarGastosDelViajeActivo = (tripId) => {
+    setActiveTripExpenses(tripId ? getExpenses(tripId) : []);
+  };
+
+  // Al montar: leemos la lista real desde el store. Sin datos de ejemplo — un
+  // store vacío (p. ej. tras limpiar localStorage) debe mostrar el estado vacío
+  // real, nunca viajes falsos.
   useEffect(() => {
-    if (getTrips().length === 0) {
-      [viajeActivoSemilla, viajeProximoSemilla, viajeFinalizadoSemilla].forEach(saveTrip);
-      [...gastosActivoSemilla, ...gastosFinalizadoSemilla].forEach(saveExpense);
-    }
     recargarViajes();
   }, []);
 
   // El viaje "Activo" (AGENTS.md §3: solo puede haber uno) determina qué
   // gastos recientes se muestran — esa sección nunca es un feed cruzado.
   const viajeActivo = viajes.find((viaje) => calcularEstadoViaje(viaje) === 'activo');
-  const gastosRecientes = viajeActivo ? getExpenses(viajeActivo.id) : [];
+
+  // Presupuesto diario FIJO del viaje Activo (presupuesto_total / duración): no
+  // fluctúa con nuevos gastos. Fuente única para el color de riesgo de cada
+  // ExpenseRow (AGENTS.md §3: "Expense risk coloring") — una vez calculado el
+  // color de un gasto, no cambia después aunque se agreguen más gastos.
+  const presupuestoDiarioFijoDelActivo = viajeActivo
+    ? calcularPresupuestoDiario(
+        viajeActivo.presupuesto_total,
+        calcularDiasTotales(viajeActivo.fecha_inicio, viajeActivo.fecha_fin)
+      )
+    : 0;
+
+  // Cada vez que cambia CUÁL es el viaje Activo (montaje inicial, siembra,
+  // un viaje que pasa a estar activo, etc.), recargamos sus gastos.
+  useEffect(() => {
+    recargarGastosDelViajeActivo(viajeActivo?.id);
+  }, [viajeActivo?.id]);
 
   return (
     <div className="min-h-screen w-full bg-bg-body font-body text-ink-primary flex flex-col">
       {/* Barra de navegación superior: logo + interruptor de moneda, sin enlaces de navegación */}
-      <TopNavbar onCurrencyChange={(esCop) => console.log('Moneda es COP:', esCop)} />
+      <TopNavbar onCurrencyChange={setMostrarEnCop} />
 
       <main className="flex-1 w-full max-w-6xl mx-auto px-4 md:px-6 py-8 md:py-10">
         {/* Encabezado: saludo + acción de nuevo viaje */}
@@ -217,7 +119,11 @@ export const Dashboard = () => {
               const estado = calcularEstadoViaje(viaje);
 
               if (estado === 'activo') {
-                const totalGastadoViaje = getExpenses(viaje.id).reduce((suma, g) => suma + g.monto, 0);
+                // Misma fuente que "Gastos recientes" (activeTripExpenses): nunca una
+                // segunda lectura aparte que solo "coincida por casualidad". Cada
+                // gasto está en su propia moneda local (AGENTS.md §3) — se convierte
+                // a COP antes de sumar, nunca se suman los "monto" crudos.
+                const totalGastadoViaje = calcularTotalGastadoEnCop(activeTripExpenses, viaje.pais);
                 return (
                   <TripActiveCard
                     key={viaje.id}
@@ -229,8 +135,14 @@ export const Dashboard = () => {
                       fechaFin: viaje.fecha_fin,
                     }}
                     totalGastado={totalGastadoViaje}
-                    // TODO: persistir en store.js (finalizado_manualmente: true) en un paso posterior
-                    onFinalizar={() => console.log('Viaje finalizado (pendiente de conectar a store.js):', viaje.id)}
+                    mostrarEnCop={mostrarEnCop}
+                    // Se dispara al presionar "Continuar" en el reporte final (ver TripActiveCard.jsx):
+                    // persiste finalizado_manualmente: true sobre el registro completo del store (para
+                    // no perder ningún campo) y refresca la lista, para que el estado sobreviva a un reload.
+                    onFinalizar={() => {
+                      saveTrip({ ...viaje, finalizado_manualmente: true });
+                      recargarViajes();
+                    }}
                     onCalcularPago={() => console.log('Calcula si puedes pagarlo')}
                   />
                 );
@@ -253,8 +165,8 @@ export const Dashboard = () => {
                 );
               }
 
-              // estado === 'finalizado'
-              const totalGastadoViaje = getExpenses(viaje.id).reduce((suma, g) => suma + g.monto, 0);
+              // estado === 'finalizado' — mismo cuidado: convertir a COP antes de sumar
+              const totalGastadoViaje = calcularTotalGastadoEnCop(getExpenses(viaje.id), viaje.pais);
               return (
                 <TripCompletedCard
                   key={viaje.id}
@@ -281,28 +193,41 @@ export const Dashboard = () => {
             </div>
 
             {/* Panel de "Agregar gastos": oculto por defecto, un solo bloque de gasto.
-                Guarda el gasto por su cuenta (saveExpense); onGuardar solo nos avisa para
-                refrescar los datos derivados (lista de gastos y presupuesto del viaje Activo). */}
+                Guarda el gasto por su cuenta (saveExpense); onGuardar dispara justo lo que
+                cambió (los gastos del viaje Activo) — no la lista de viajes completa, que
+                no se vio afectada por agregar un gasto. */}
             {mostrarFormularioGastos && viajeActivo && (
               <AddExpensesForm
-                tripId={viajeActivo.id}
+                trip={viajeActivo}
                 onGuardar={() => {
-                  recargarViajes();
+                  recargarGastosDelViajeActivo(viajeActivo.id);
                   setMostrarFormularioGastos(false);
                 }}
                 onCancelar={() => setMostrarFormularioGastos(false)}
               />
             )}
 
-            {/* Lista de gastos recientes: solo del viaje Activo (AGENTS.md §3) */}
+            {/* Lista de gastos recientes: solo del viaje Activo (AGENTS.md §3).
+                Misma fuente (activeTripExpenses) que totalGastado en TripActiveCard.
+                gasto.monto está en la moneda local del viaje: se convierte a COP
+                primero y formatearMontoSegunModoMoneda decide, según el interruptor,
+                si se muestra así o se vuelve a convertir a la moneda local para mostrar. */}
             <div className="flex flex-col gap-3">
-              {gastosRecientes.map((gasto) => (
+              {activeTripExpenses.map((gasto) => (
                 <ExpenseRow
                   key={gasto.id}
                   description={gasto.titulo}
-                  amount={formatearMoneda(gasto.monto)}
+                  amount={formatearMontoSegunModoMoneda(
+                    convertirLocalACOP(gasto.monto, viajeActivo.pais),
+                    viajeActivo.pais,
+                    mostrarEnCop
+                  )}
                   relativeTime={formatearTiempoRelativo(gasto.creado_en)}
-                  riskLevel={NIVEL_RIESGO_POR_GASTO[gasto.id] || 'low'}
+                  riskLevel={calcularNivelRiesgoGasto(
+                    gasto.monto,
+                    viajeActivo.pais,
+                    presupuestoDiarioFijoDelActivo
+                  )}
                 />
               ))}
             </div>
@@ -345,6 +270,18 @@ export const Dashboard = () => {
           setIsNewTripDrawerOpen(false);
         }}
       />
+
+      {/* TEMP: dev-only reset button, remove before final submission */}
+      <button
+        type="button"
+        onClick={() => {
+          resetAllData();
+          window.location.reload();
+        }}
+        className="fixed bottom-4 right-4 z-50 rounded-full bg-alert-max px-3 py-2 text-xs text-ink-primary shadow-soft hover:opacity-80"
+      >
+        🗑 Reset all data (dev)
+      </button>
     </div>
   );
 };

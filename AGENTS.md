@@ -58,6 +58,8 @@ This exists so that if the project ever migrates to a real backend, only this fi
 }
 ```
 
+> **monto is stored in the trip's own local currency** (derived from `trip.pais` via `trip_id`), **NEVER in COP**. Any COP-denominated total or display must convert each expense via budget.js's `convertirLocalACOP()` before aggregating. The navbar currency switch ("Mostrar resultados en COP") governs both the TripActiveCard budget numbers AND the ExpenseRow amount display — not just the budget card.
+
 ### Trip status (always derived, never its own stored field)
 
 ```
@@ -88,6 +90,17 @@ entered_amount / remaining_daily_budget ≤ 69% → green result (alert-min)
 Referred to internally as **"la Regla del 69%"**.
 
 No text verdict ("Yes you can" / "No you can't") — just two percentages (% of daily budget, % of total budget), with the banner color communicating the result.
+
+### Expense risk coloring (ExpenseRow accent color)
+Each saved expense is color-coded by comparing its amount (converted to COP) against the trip's FIXED daily budget (presupuesto_total / duración — the same stable value used in calcularPresupuestoDiario, NOT the fluctuating remaining daily budget). This means an expense's color is set once and never changes afterward, regardless of later spending on the same trip.
+
+```
+≤ 40% of the fixed daily budget → 'low' (alert-min, green)
+> 40% and ≤ 70% → 'medium' (alert-medium, yellow)
+> 70% → 'high' (alert-max, red)
+```
+
+This is a distinct rule from "Can I afford this?" above: that one is prospective (evaluated before spending, against the fluctuating remaining daily budget); this one is retroactive (colors already-saved expenses in "Recent expenses", against the fixed original daily budget).
 
 ### "Recent expenses"
 Only shows expenses for the **Activo** trip. It is not a cross-trip feed.

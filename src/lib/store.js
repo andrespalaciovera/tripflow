@@ -90,3 +90,11 @@ export function saveExpense(expense) {
 export function deleteExpense(id) {
   writeAll(EXPENSES_KEY, getExpensesAll().filter((expense) => expense.id !== id))
 }
+
+// --- Utilities ---------------------------------------------------------------
+
+// This is the only place that should know the raw key names.
+export function resetAllData() {
+  localStorage.removeItem(TRIPS_KEY)
+  localStorage.removeItem(EXPENSES_KEY)
+}

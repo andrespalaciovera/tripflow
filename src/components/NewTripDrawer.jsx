@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import Button from './Button';
 import Input from './Input';
 import { saveTrip } from '../lib/store';
-import { calcularDiasTotales, obtenerPresupuestoSugerido, derivarMonedaDesdePais, convertirAMonedaLocal } from '../lib/budget';
+import { calcularDiasTotales, obtenerPresupuestoSugerido, derivarMonedaDesdePais, convertirCOPaLocal } from '../lib/budget';
 
 /**
  * Lista fija de los 7 países disponibles para el MVP (AGENTS.md §7), usando
@@ -133,13 +133,7 @@ export const NewTripDrawer = ({ isOpen, onClose, onSave }) => {
     const montoEnCop = Number(presupuesto);
     if (!montoEnCop || Number.isNaN(montoEnCop) || montoEnCop <= 0) return null;
 
-    // convertirAMonedaLocal(monto, país) devuelve cuántos COP equivalen a
-    // "monto" unidades de la moneda local del país. Pidiendo la tasa para 1
-    // unidad (convertirAMonedaLocal(1, país)) obtenemos ese factor y lo usamos
-    // para la conversión inversa (COP → moneda local) sin duplicar la tabla
-    // de tasas fuera de budget.js.
-    const tasa = convertirAMonedaLocal(1, destino);
-    const montoConvertido = montoEnCop / tasa;
+    const montoConvertido = convertirCOPaLocal(montoEnCop, destino);
     const moneda = derivarMonedaDesdePais(destino);
 
     return `≈ $${montoConvertido.toLocaleString('en-US', { maximumFractionDigits: 0 })} ${moneda}`;

@@ -10,8 +10,8 @@ import {
   calcularPresupuestoDiarioRestante,
   calcularPorcentajeGastado,
   calcularImpactoGasto,
-  convertirAMonedaLocal,
-  formatearMoneda,
+  convertirLocalACOP,
+  formatearMontoSegunModoMoneda,
 } from '../lib/budget';
 
 /**
@@ -39,11 +39,14 @@ import {
  * @param {number} props.trip.presupuestoTotal - Presupuesto total del viaje en COP
  * @param {string} props.trip.fechaInicio - Fecha de inicio en formato ISO o YYYY-MM-DD
  * @param {string} props.trip.fechaFin - Fecha de fin en formato ISO o YYYY-MM-DD
- * @param {number} props.totalGastado - Suma total de gastos registrados (proviene del store)
- * @param {Function} [props.onFinalizar] - Callback al confirmar el fin del viaje en el overlay de confirmación
+ * @param {number} props.totalGastado - Suma total de gastos registrados, ya en COP (proviene del store)
+ * @param {boolean} [props.mostrarEnCop=true] - Interruptor "Mostrar resultados en COP" de TopNavbar:
+ *   si es false, todos los montos se muestran convertidos a la moneda local del viaje
+ * @param {Function} [props.onFinalizar] - Callback al presionar "Continuar" en el reporte final;
+ *   el padre debe persistir finalizado_manualmente: true (store.js) y refrescar su lista
  * @param {Function} [props.onCalcularPago] - Callback al presionar "Calcula si puedes pagarlo"
  */
-export const TripActiveCard = ({ trip, totalGastado, onFinalizar, onCalcularPago }) => {
+export const TripActiveCard = ({ trip, totalGastado, mostrarEnCop = true, onFinalizar, onCalcularPago }) => {
   const { destino, motivo, presupuestoTotal, fechaInicio, fechaFin } = trip;
 
   // --- Estado de la vista (por defecto, calculadora o resultado) -----------
@@ -73,7 +76,7 @@ export const TripActiveCard = ({ trip, totalGastado, onFinalizar, onCalcularPago
    * contra el presupuesto diario y total (Regla del 69%, ver /lib/budget.js).
    */
   const manejarCalculo = () => {
-    const valorEnCop = convertirAMonedaLocal(Number(valorIngresado), destino);
+    const valorEnCop = convertirLocalACOP(Number(valorIngresado), destino);
     const { porcentajeDiario, porcentajeTotal, riesgoso } = calcularImpactoGasto(
       presupuestoDiarioRestante,
       presupuestoTotal,
@@ -96,13 +99,19 @@ export const TripActiveCard = ({ trip, totalGastado, onFinalizar, onCalcularPago
   };
 
   /**
-   * Confirma el cierre del viaje desde el overlay de confirmación.
-   * Notifica al padre, decide el reporte final (dentro o por encima del presupuesto
-   * total) y cierra el overlay.
+   * Confirma el cierre del viaje desde el overlay de confirmación: decide el
+   * reporte final (dentro o por encima del presupuesto total) y cierra el overlay.
+   *
+   * No notifica al padre aquí a propósito: onFinalizar ahora dispara la
+   * persistencia real (finalizado_manualmente: true) en Dashboard.js, lo que
+   * hace que esa tarjeta se reemplace por TripCompletedCard en el próximo
+   * render del padre. Si se disparara en este punto, el reporte
+   * REPORT_GOOD/REPORT_BAD nunca llegaría a mostrarse. La notificación real
+   * ocurre al presionar "Continuar" más abajo, que es también el punto que
+   * AGENTS.md §7 documenta como el que colapsa la tarjeta al card compacto.
    */
   const manejarConfirmacionFinalizar = () => {
     setVistaActual(totalGastado <= presupuestoTotal ? 'REPORT_GOOD' : 'REPORT_BAD');
-    onFinalizar?.();
     setMostrarConfirmacion(false);
   };
 
@@ -144,11 +153,15 @@ export const TripActiveCard = ({ trip, totalGastado, onFinalizar, onCalcularPago
         <div className="flex gap-8 mb-6">
           <div>
             <p className="text-label font-body text-ink-muted">Presupuesto</p>
-            <p className="text-body font-body text-ink-primary">{formatearMoneda(presupuestoTotal)}</p>
+            <p className="text-body font-body text-ink-primary">
+              {formatearMontoSegunModoMoneda(presupuestoTotal, destino, mostrarEnCop)}
+            </p>
           </div>
           <div>
             <p className="text-label font-body text-ink-muted">Gasto total</p>
-            <p className="text-body font-body text-ink-primary">{formatearMoneda(totalGastado)}</p>
+            <p className="text-body font-body text-ink-primary">
+              {formatearMontoSegunModoMoneda(totalGastado, destino, mostrarEnCop)}
+            </p>
           </div>
         </div>
 
@@ -186,7 +199,9 @@ export const TripActiveCard = ({ trip, totalGastado, onFinalizar, onCalcularPago
           {/* Derecha: monto restante (GOOD) o deuda (BAD) */}
           <div className="flex-1 flex flex-col gap-2">
             <p className="text-label font-body text-ink-muted">{esBueno ? 'Te quedaron' : 'Debes'}</p>
-            <p className="text-body font-body text-ink-primary">{formatearMoneda(montoRestanteODeuda)}</p>
+            <p className="text-body font-body text-ink-primary">
+              {formatearMontoSegunModoMoneda(montoRestanteODeuda, destino, mostrarEnCop)}
+            </p>
           </div>
         </div>
 
@@ -203,7 +218,7 @@ export const TripActiveCard = ({ trip, totalGastado, onFinalizar, onCalcularPago
             {esBueno ? 'Quedaste dentro del presupuesto' : 'Quedaste fuera del presupuesto, debes:'}
           </p>
           <p className="text-h2 font-display text-ink-primary font-bold">
-            {esBueno ? 'Felicidades' : formatearMoneda(montoRestanteODeuda)}
+            {esBueno ? 'Felicidades' : formatearMontoSegunModoMoneda(montoRestanteODeuda, destino, mostrarEnCop)}
           </p>
         </div>
 
@@ -245,7 +260,9 @@ export const TripActiveCard = ({ trip, totalGastado, onFinalizar, onCalcularPago
       {/* Presupuesto inicial */}
       <div className="mb-6">
         <p className="text-label font-body text-ink-muted">Presupuesto inicial</p>
-        <p className="text-body font-body text-ink-primary">{formatearMoneda(presupuestoTotal)}</p>
+        <p className="text-body font-body text-ink-primary">
+          {formatearMontoSegunModoMoneda(presupuestoTotal, destino, mostrarEnCop)}
+        </p>
       </div>
 
       {/* Sección de medidores: anillo de progreso + barra de días */}
@@ -290,7 +307,9 @@ export const TripActiveCard = ({ trip, totalGastado, onFinalizar, onCalcularPago
         <div className="flex-1 flex flex-col gap-2">
           <div>
             <p className="text-label font-body text-ink-muted">Te quedan</p>
-            <p className="text-body font-body text-ink-primary">{formatearMoneda(presupuestoRestante)}</p>
+            <p className="text-body font-body text-ink-primary">
+              {formatearMontoSegunModoMoneda(presupuestoRestante, destino, mostrarEnCop)}
+            </p>
           </div>
 
           <p className="text-label font-body text-ink-muted">
@@ -310,7 +329,9 @@ export const TripActiveCard = ({ trip, totalGastado, onFinalizar, onCalcularPago
       {/* Sección inferior: gasto diario disponible (tarjeta blanca de solo texto) */}
       <div className="bg-bg-surface rounded-md p-4">
         <p className="text-body font-body text-ink-primary">Cada día restante puedes gastar</p>
-        <p className="text-h3 font-display text-ink-primary mt-1">{formatearMoneda(presupuestoDiarioRestante)}</p>
+        <p className="text-h3 font-display text-ink-primary mt-1">
+          {formatearMontoSegunModoMoneda(presupuestoDiarioRestante, destino, mostrarEnCop)}
+        </p>
       </div>
 
       {/* Acción principal: fuera y debajo de la tarjeta blanca */}

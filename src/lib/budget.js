@@ -132,6 +132,34 @@ export const calcularImpactoGasto = (presupuestoDiario, presupuestoTotal, valorE
   return { porcentajeDiario, porcentajeTotal, riesgoso };
 };
 
+// --- Coloreado de riesgo de gastos guardados (AGENTS.md §3) -----------------
+// Distinta de calcularImpactoGasto/Regla del 69% de arriba: esta es retroactiva
+// (colorea gastos ya guardados en "Gastos recientes") y se mide contra el
+// presupuesto diario FIJO del viaje (calcularPresupuestoDiario), no contra el
+// presupuesto diario restante que fluctúa con cada nuevo gasto. Por eso el
+// color de un gasto, una vez calculado, nunca cambia después.
+
+/**
+ * Nivel de riesgo (color de acento de ExpenseRow) de un gasto ya guardado,
+ * según qué tan grande es frente al presupuesto diario FIJO del viaje
+ * (AGENTS.md §3: "Expense risk coloring").
+ * @param {number} montoLocal - Monto del gasto en la moneda LOCAL del viaje
+ * @param {string} pais - País del viaje, para convertir el monto a COP
+ * @param {number} presupuestoDiarioFijo - Presupuesto diario fijo del viaje, en COP
+ *   (ver calcularPresupuestoDiario: presupuesto_total / duración, no fluctúa)
+ * @returns {'low' | 'medium' | 'high'}
+ */
+export const calcularNivelRiesgoGasto = (montoLocal, pais, presupuestoDiarioFijo) => {
+  if (presupuestoDiarioFijo <= 0) return 'high';
+
+  const montoEnCop = convertirLocalACOP(montoLocal, pais);
+  const porcentaje = (montoEnCop / presupuestoDiarioFijo) * 100;
+
+  if (porcentaje <= 40) return 'low';
+  if (porcentaje <= 70) return 'medium';
+  return 'high';
+};
+
 // --- Estado del viaje y presupuesto sugerido (AGENTS.md §3) -----------------
 
 /**
@@ -208,32 +236,66 @@ export const TASAS_CONVERSION_COP = {
 };
 
 /**
- * Convierte un monto en la moneda local de un país a COP, usando tasas fijas
- * (MVP). Si el país no está en la tabla, se asume tasa 1 y se registra un
- * console.warn para que un país mal escrito o faltante no pase inadvertido
- * en desarrollo.
+ * Convierte un monto en la moneda LOCAL de un país a COP (multiplica por la
+ * tasa), usando tasas fijas (MVP). Si el país no está en la tabla, se asume
+ * tasa 1 y se registra un console.warn para que un país mal escrito o
+ * faltante no pase inadvertido en desarrollo.
  *
- * Nota de nombre: pese a llamarse "convertirAMonedaLocal", esta función
- * reproduce el comportamiento ya existente en TripActiveCard.jsx antes del
- * refactor: recibe un monto en moneda LOCAL y devuelve su equivalente en COP
- * (no al revés). Se conserva el nombre pedido; la conversión real por API
- * queda fuera de alcance de este cambio.
+ * Dirección confirmada en TASAS_CONVERSION_COP: "1 unidad de moneda local =
+ * tasa COP" (ej. 1 EUR = 4300 COP) — por eso esta conversión multiplica.
+ * Antes se llamaba "convertirAMonedaLocal", un nombre que sugería la
+ * dirección contraria a su propio comportamiento; se renombra aquí para que
+ * el nombre coincida con la operación real.
  *
- * @param {number} monto - Monto en la moneda local del país
+ * @param {number} montoLocal - Monto en la moneda local del país
  * @param {string} pais - Nombre exacto del país (ver TASAS_CONVERSION_COP)
  * @param {Record<string, number>} [tasas=TASAS_CONVERSION_COP] - Tabla de tasas a usar
  * @returns {number} Monto equivalente en COP
  */
-export const convertirAMonedaLocal = (monto, pais, tasas = TASAS_CONVERSION_COP) => {
+export const convertirLocalACOP = (montoLocal, pais, tasas = TASAS_CONVERSION_COP) => {
   const tasa = tasas[pais];
 
   if (tasa === undefined) {
-    console.warn(`convertirAMonedaLocal: país "${pais}" no encontrado en la tabla de tasas, usando tasa 1.`);
-    return Number(monto) * 1;
+    console.warn(`convertirLocalACOP: país "${pais}" no encontrado en la tabla de tasas, usando tasa 1.`);
+    return Number(montoLocal) * 1;
   }
 
-  return Number(monto) * tasa;
+  return Number(montoLocal) * tasa;
 };
+
+/**
+ * Convierte un monto en COP a la moneda LOCAL de un país (divide por la
+ * tasa) — la conversión inversa de convertirLocalACOP. Usada, por ejemplo,
+ * para la vista previa de NewTripDrawer ("a cuánto equivale este presupuesto
+ * en COP dentro de la moneda del destino").
+ *
+ * @param {number} montoCOP - Monto en COP
+ * @param {string} pais - Nombre exacto del país (ver TASAS_CONVERSION_COP)
+ * @param {Record<string, number>} [tasas=TASAS_CONVERSION_COP] - Tabla de tasas a usar
+ * @returns {number} Monto equivalente en la moneda local del país
+ */
+export const convertirCOPaLocal = (montoCOP, pais, tasas = TASAS_CONVERSION_COP) => {
+  const tasa = tasas[pais];
+
+  if (tasa === undefined) {
+    console.warn(`convertirCOPaLocal: país "${pais}" no encontrado en la tabla de tasas, usando tasa 1.`);
+    return Number(montoCOP) * 1;
+  }
+
+  return Number(montoCOP) / tasa;
+};
+
+/**
+ * Suma los gastos de un viaje, convirtiendo cada uno a COP antes de sumar
+ * (Expense.monto siempre está en la moneda LOCAL del viaje — AGENTS.md §3 —
+ * nunca en COP). Fuente única para cualquier totalGastado en COP: nunca sumar
+ * los "monto" crudos directamente.
+ * @param {Array<{monto: number}>} gastos - Gastos del viaje (Expense[], monto en moneda local)
+ * @param {string} pais - País del viaje, para la tasa de conversión
+ * @returns {number} Total gastado, en COP
+ */
+export const calcularTotalGastadoEnCop = (gastos, pais) =>
+  gastos.reduce((suma, gasto) => suma + convertirLocalACOP(gasto.monto, pais), 0);
 
 // --- Formato ----------------------------------------------------------------
 
@@ -249,6 +311,26 @@ export const formatearMoneda = (valor) => {
     currency: 'COP',
     maximumFractionDigits: 0,
   }).format(monto);
+};
+
+/**
+ * Formatea un monto ya expresado en COP, respetando el interruptor "Mostrar
+ * resultados en COP" de TopNavbar: si está activo, se muestra en COP; si no,
+ * se convierte a la moneda local del país y se muestra con su código de
+ * moneda (nunca un sufijo "COP" fijo). Fuente única para TripActiveCard y la
+ * lista de "Gastos recientes" en Dashboard, para que ambos respeten siempre
+ * el mismo interruptor de la misma manera.
+ * @param {number} valorEnCop - Monto ya calculado en COP
+ * @param {string} pais - País del viaje, para convertir si el interruptor está apagado
+ * @param {boolean} mostrarEnCop - Estado del interruptor de moneda
+ * @returns {string} Monto formateado (ej. "$1.495.000" o "$1,510 EUR")
+ */
+export const formatearMontoSegunModoMoneda = (valorEnCop, pais, mostrarEnCop) => {
+  if (mostrarEnCop) return formatearMoneda(valorEnCop);
+
+  const montoLocal = convertirCOPaLocal(valorEnCop, pais);
+  const moneda = derivarMonedaDesdePais(pais);
+  return `$${montoLocal.toLocaleString('en-US', { maximumFractionDigits: 0 })} ${moneda}`;
 };
 
 // --- Validación (dev only) ---------------------------------------------------
@@ -268,4 +350,14 @@ console.assert(_diaActualEjemplo === 2, `calcularDiaActual: se esperaba el día 
 console.assert(
   Math.round(_porcentajeGastadoEjemplo) === 23,
   `calcularPorcentajeGastado: se esperaba ≈23%, se obtuvo ${_porcentajeGastadoEjemplo}%`
+);
+
+// Dirección de conversión: 1 EUR = 4300 COP (tabla TASAS_CONVERSION_COP)
+console.assert(
+  convertirLocalACOP(1, 'España') === 4300,
+  `convertirLocalACOP: se esperaba 4300, se obtuvo ${convertirLocalACOP(1, 'España')}`
+);
+console.assert(
+  convertirCOPaLocal(4300, 'España') === 1,
+  `convertirCOPaLocal: se esperaba 1, se obtuvo ${convertirCOPaLocal(4300, 'España')}`
 );

@@ -1,7 +1,8 @@
-import React, { useRef, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import Button from './Button';
 import Input from './Input';
 import { saveExpense } from '../lib/store';
+import { convertirLocalACOP, derivarMonedaDesdePais, formatearMoneda } from '../lib/budget';
 
 /**
  * Icono de "renombrar" (fluent:rename-16-regular) usado como prefijo
@@ -66,13 +67,16 @@ const obtenerFechaDeHoy = () => new Date().toISOString().slice(0, 10);
  * recientes y números de presupuesto del viaje Activo).
  *
  * @param {Object} props
- * @param {string} props.tripId - Id del viaje Activo al que pertenece el gasto (AGENTS.md §6:
- *   este panel solo tiene sentido en el contexto del viaje Activo)
+ * @param {Object} props.trip - Viaje Activo al que pertenece el gasto (AGENTS.md §6: este panel
+ *   solo tiene sentido en el contexto del viaje Activo). Se usa trip.id para el trip_id del
+ *   Expense y trip.pais para saber en qué moneda local se está registrando el monto
+ *   (AGENTS.md §3: Expense.monto siempre está en la moneda local del viaje, nunca en COP)
  * @param {Function} [props.onGuardar] - Se dispara con el gasto ya guardado (incluye id) al presionar "Guardar"
  * @param {Function} [props.onCancelar] - Se dispara al presionar "Cancelar"
  * @param {string} [props.className] - Clases adicionales para el contenedor raíz
  */
-export const AddExpensesForm = ({ tripId, onGuardar = () => {}, onCancelar = () => {}, className = '' }) => {
+export const AddExpensesForm = ({ trip, onGuardar = () => {}, onCancelar = () => {}, className = '' }) => {
+  const moneda = derivarMonedaDesdePais(trip?.pais);
   // Controla si el formulario sigue montado en pantalla.
   // No es un "acordeón": el formulario lo monta un disparador externo,
   // y al cancelar desaparece por completo (no queda un encabezado colapsado).
@@ -93,6 +97,22 @@ export const AddExpensesForm = ({ tripId, onGuardar = () => {}, onCancelar = () 
 
   // Referencia al input de tipo archivo (oculto)
   const inputFotoRef = useRef(null);
+
+  /**
+   * Vista previa en vivo: a cuánto equivale en COP el monto que el usuario está
+   * escribiendo (en la moneda local del viaje). Mismo patrón que la vista previa
+   * de presupuesto en NewTripDrawer, para que el usuario nunca quede confundido
+   * sobre en qué moneda está registrando el gasto.
+   */
+  const montoConvertidoPreview = useMemo(() => {
+    if (!trip?.pais || trip.pais === 'Colombia') return null;
+
+    const montoNumerico = Number(monto);
+    if (!monto || Number.isNaN(montoNumerico) || montoNumerico <= 0) return null;
+
+    const montoEnCop = convertirLocalACOP(montoNumerico, trip.pais);
+    return `≈ ${formatearMoneda(montoEnCop)} COP`;
+  }, [monto, trip?.pais]);
 
   const abrirSelectorDeFoto = () => {
     inputFotoRef.current?.click();
@@ -168,7 +188,7 @@ export const AddExpensesForm = ({ tripId, onGuardar = () => {}, onCancelar = () 
     }
 
     const gasto = {
-      trip_id: tripId,
+      trip_id: trip.id,
       titulo: titulo.trim(),
       monto: Number(monto),
       fecha,
@@ -270,17 +290,24 @@ export const AddExpensesForm = ({ tripId, onGuardar = () => {}, onCancelar = () 
               {errores.titulo && <span className="text-label text-alert-max px-1">{errores.titulo}</span>}
             </div>
 
-            <div className="flex flex-col sm:flex-row gap-6">
+            <div className="flex flex-col gap-6">
               <div className="flex flex-col gap-1.5 w-full">
                 <Input
                   label="Monto"
                   type="number"
-                  prefix="$"
+                  prefix={moneda}
                   placeholder="0.00"
                   value={monto}
                   onChange={(e) => setMonto(e.target.value)}
                 />
-                {errores.monto && <span className="text-label text-alert-max px-1">{errores.monto}</span>}
+                {errores.monto ? (
+                  <span className="text-label text-alert-max px-1">{errores.monto}</span>
+                ) : (
+                  /* Vista previa de conversión a COP mientras el usuario escribe */
+                  montoConvertidoPreview && (
+                    <span className="text-label text-ink-muted px-1">{montoConvertidoPreview}</span>
+                  )
+                )}
               </div>
 
               <div className="flex flex-col gap-1.5 w-full">
