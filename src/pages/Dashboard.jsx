@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import TopNavbar from '../components/TopNavbar';
 import Button from '../components/Button';
 import TripActiveCard from '../components/TripActiveCard';
@@ -66,12 +66,6 @@ export const Dashboard = () => {
   // Arranca en true, igual que el valor por defecto de TopNavbar.
   const [mostrarEnCop, setMostrarEnCop] = useState(true);
 
-  // Ref hacia el botón móvil "+ Nuevo viaje" del final de la página.
-  // Cuando ese botón entra en el viewport (el usuario ha llegado al fondo),
-  // la MobileBottomBar se oculta deslizándose hacia abajo para no solaparse.
-  const bottomButtonRef = useRef(null);
-  const [isBottomButtonVisible, setIsBottomButtonVisible] = useState(false);
-
   // Estado para controlar qué viaje está seleccionado para eliminarse.
   // Si es null, el modal de confirmación está cerrado.
   const [tripToDelete, setTripToDelete] = useState(null);
@@ -135,23 +129,6 @@ export const Dashboard = () => {
   // un viaje que pasa a estar activo, etc.), recargamos sus gastos.
   useEffect(() => {
     recargarGastosDelViajeActivo(viajeActivo?.id);
-  }, [viajeActivo?.id]);
-
-  // IntersectionObserver: detecta cuándo el botón móvil "+ Nuevo viaje" entra
-  // o sale del viewport y actualiza isBottomButtonVisible en consecuencia.
-  // Solo se activa cuando existe un viajeActivo (el botón solo se renderiza entonces).
-  // Se limpia al desmontar o cuando viajeActivo cambia para evitar memory leaks.
-  useEffect(() => {
-    const el = bottomButtonRef.current;
-    if (!el) return;
-
-    const observador = new IntersectionObserver(
-      ([entrada]) => setIsBottomButtonVisible(entrada.isIntersecting),
-      { threshold: 0.1 }
-    );
-
-    observador.observe(el);
-    return () => observador.disconnect();
   }, [viajeActivo?.id]);
 
   // Ordenamiento de viajes por prioridad (AGENTS.md §3 + requisito de producto):
@@ -273,7 +250,7 @@ export const Dashboard = () => {
         />
       )}
 
-      <main className="flex-1 w-full max-w-6xl mx-auto px-4 md:px-6 py-6 md:py-8">
+      <main className="flex-1 w-full max-w-6xl mx-auto px-4 md:px-6 pt-16 pb-6 md:pt-6 md:pb-8">
         {viajes.length === 0 ? (
           <div className="flex flex-col items-center justify-center flex-1 h-full min-h-[60vh] text-center px-4">
             <h1 className="text-h1 font-display text-ink-primary mb-4">{saludoTexto} {saludoEmoji}</h1>
@@ -389,22 +366,6 @@ export const Dashboard = () => {
                 ))}
               </section>
             </div>
-            {/* Botón móvil "+ Nuevo viaje" — solo cuando hay un viaje Activo.
-            En ese caso MobileBottomBar (Caso 1) ocupa el espacio inferior con
-            "Agregar gastos", así que este botón secundario ofrece la alternativa
-            de crear un nuevo viaje. El ref dispara el IntersectionObserver que
-            oculta la MobileBottomBar cuando este botón entra en el viewport. */}
-            {viajeActivo && (
-              <div ref={bottomButtonRef} className="mt-8 md:hidden">
-                <Button
-                  variant="secondary"
-                  className="w-full"
-                  onClick={() => setIsNewTripDrawerOpen(true)}
-                >
-                  + Nuevo viaje
-                </Button>
-              </div>
-            )}
           </>
         )}
       </main>
@@ -417,7 +378,6 @@ export const Dashboard = () => {
       <MobileBottomBar
         hasAnyTrips={viajes.length > 0}
         hasActiveTrip={!!viajeActivo}
-        hideBar={isBottomButtonVisible}
         onAddExpense={() => setMostrarFormularioGastos(true)}
         onNewTrip={() => setIsNewTripDrawerOpen(true)}
         isCop={mostrarEnCop}

@@ -370,6 +370,17 @@ export const TripActiveCard = ({ trip, totalGastado, mostrarEnCop = true, onFina
           <Button variant="primary" className="w-full mt-4" onClick={manejarCalculo}>
             Calcular
           </Button>
+
+          <Button
+            variant="ghost"
+            className="w-full mt-2"
+            onClick={() => {
+              setVistaActual('DEFAULT');
+              setValorIngresado('');
+            }}
+          >
+            Cancelar
+          </Button>
         </div>
       )}
 

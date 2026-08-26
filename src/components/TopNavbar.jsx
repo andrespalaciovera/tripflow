@@ -35,15 +35,34 @@ export const TopNavbar = ({
 
   return (
     <nav
-      className={`w-full flex justify-between items-center bg-bg-navbar-forms px-4 py-4 md:px-6 ${className}`}
+      className={`fixed top-0 left-0 z-30 w-full flex justify-between items-center bg-bg-navbar-forms px-4 py-4 md:static md:z-auto md:px-6 ${className}`}
     >
-      {/* Logotipo de la aplicación */}
+      {/* Logotipo + botón "+ Nuevo viaje" en móvil (solo cuando hay viajes) */}
+      {/* <div className="flex items-center gap-3">
+        <span className="font-display text-h2 text-ink-primary select-none">
+          Tripflow
+        </span>
+        {hasTrips && (
+          <Button variant="secondary" className="md:hidden py-1.5 px-3 text-label" onClick={onNewTrip}>
+            + Nuevo viaje
+          </Button>
+        )}
+      </div> */}
       <span className="font-display text-h2 text-ink-primary select-none">
         Tripflow
       </span>
 
+      {/* Botón Móvil (Derecha) - Se empuja gracias al justify-between del nav */}
+      <div className="md:hidden flex items-center">
+        {hasTrips && (
+          <Button variant="secondary" className="py-1.5 px-3 text-label" onClick={onNewTrip}>
+            + Nuevo viaje
+          </Button>
+        )}
+      </div>
+
       {/* Acciones derechas: solo visibles en escritorio.
-          En móvil, MobileBottomBar asume ambas funciones. */}
+          En móvil, MobileBottomBar asume la moneda; el botón de viaje está junto al logo. */}
       <div className="hidden md:flex items-center gap-4">
         <CurrencySwitch activo={esCop} alCambiar={manejarCambioMoneda} />
         {hasTrips && (

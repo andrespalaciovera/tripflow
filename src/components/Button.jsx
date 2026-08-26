@@ -16,6 +16,9 @@ const VARIANTES = {
   // Variante terciaria: Fondo transparente con borde 2px y texto verde de estado activo
   tertiary: 'bg-transparent border-2 border-status-activo-text text-status-activo-text hover:bg-status-activo-bg/40 active:scale-[0.98]',
   
+  // Variante fantasma: sin borde, texto atenuado que se vuelve primario al hacer hover
+  ghost: 'bg-transparent text-ink-muted hover:text-ink-primary hover:bg-ink-primary/5 active:scale-[0.98]',
+
   // Variante botón de icono para agregar: Circular, fondo negro tinta y texto blanco superficie
   'icon-add': 'w-10 h-10 aspect-square p-2 bg-ink-primary text-bg-surface hover:opacity-90 active:scale-95',
   
@@ -27,7 +30,7 @@ const VARIANTES = {
  * Componente reutilizable Button para la aplicación Tripflow.
  *
  * @param {Object} props - Propiedades del componente
- * @param {'primary' | 'secondary' | 'disabled' | 'tertiary' | 'icon-add' | 'icon-delete'} [props.variant='primary'] - Variante visual del botón
+ * @param {'primary' | 'secondary' | 'disabled' | 'tertiary' | 'ghost' | 'icon-add' | 'icon-delete'} [props.variant='primary'] - Variante visual del botón
  * @param {'button' | 'submit' | 'reset'} [props.type='button'] - Tipo de botón HTML
  * @param {boolean} [props.disabled=false] - Indica si el botón está inactivo
  * @param {string} [props.className=''] - Clases CSS adicionales para extender estilos
