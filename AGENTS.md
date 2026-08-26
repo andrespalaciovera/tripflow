@@ -108,7 +108,7 @@ Each saved expense is color-coded by comparing its amount (converted to COP) aga
 
 This is a distinct rule from "Can I afford this?" above: that one is prospective (evaluated before spending, against the fluctuating remaining daily budget); this one is retroactive (colors already-saved expenses in "Recent expenses", against the fixed original daily budget).
 
-When `presupuestoRestante <= 0` (all budget spent or exceeded), TripActiveCard's ring, "Te quedan" line, and daily-spend box switch to `alert-max` coloring and show a fallback message instead of a negative number — negative currency values are never shown to the user.
+When `presupuestoRestante <= 0` (all budget spent or exceeded), TripActiveCard's ring, "Te quedan" line, and daily-spend box switch to `alert-max` coloring and show a fallback message instead of a negative number — negative currency values are never shown to the user. When presupuestoRestante <= 0, the 'Calcula si puedes pagarlo' button is hidden entirely (not disabled) in TripActiveCard's DEFAULT view — the overspent fallback message already answers the question the button exists to ask, so showing it would be redundant and its underlying calculation (division by a zero/negative daily budget) would produce a misleading result.
 
 ### "Recent expenses"
 Only shows expenses for the **Activo** trip. It is not a cross-trip feed.
@@ -237,6 +237,8 @@ There are no separate pages for trip detail or for the forms — everything live
 
 ### New trip (drawer)
 Country (7 options: United States, Mexico, Colombia, Spain, France, Germany, Italy) · Trip purpose (toggle) · Start date · End date · Budget (COP, with a suggested conversion shown unless Country = Colombia)
+
+DatePicker's fecha_fin field opens its calendar defaulted to fecha_inicio's month (via the defaultMonth prop) once fecha_inicio has been selected — this only affects which month the calendar visually opens on, it does not auto-select a fecha_fin value.
 
 ### Add expense (inline panel)
 Photo upload zone (copy: "Take one or several photos of your receipts" — note: the MVP currently only processes one photo/expense at a time; the copy is intentionally left this way to not block a future multi-expense version) · Title · Amount · Date (default: today)

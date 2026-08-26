@@ -24,7 +24,7 @@ Dos funcionalidades diferenciadoras nacen directamente del research, no de intui
 **Tier 1 — evidencia de comportamiento real:** reseñas de App Store/Google Play (TravelSpend, Trabee Pocket, Tripcoin), foros de viajeros (Rick Steves, Tripadvisor), blogs de viajeros de primera mano.
 **Tier 2 — contexto:** publicaciones de viaje, artículos financieros sobre presupuesto.
 
-El research completo está en [`Travelers' Budgets and Expenses.pdf`](./research/Travelers-Budgets-and-Expenses.pdf).
+El research completo está en [`Travelers' Budgets and Expenses.pdf`](./research/Travelers_Budgets_and_Expenses.pdf).
 
 ### Las 4 conclusiones que definieron el producto
 
@@ -81,7 +81,7 @@ Frustraciones: convertir monedas a mano, perder visibilidad de gastos en efectiv
 
 ### Crazy 8's
 
-32 ideas generadas (8 por cada HMW) — ver sketches en `/docs/assets/crazy8s/`. Ideas descartadas por alcance quedaron documentadas explícitamente (ej. mascota virtual, cupones, donación forzada del exceso de gasto) para no perder el rastro de por qué no se construyeron.
+32 ideas generadas (8 por cada HMW) — ver sketches en `/docs/assets/crazy8's/`. Ideas descartadas por alcance quedaron documentadas explícitamente (ej. mascota virtual, cupones, donación forzada del exceso de gasto) para no perder el rastro de por qué no se construyeron.
 
 ### Evaluación de viabilidad — las 2 ideas diferenciadoras
 
@@ -112,7 +112,7 @@ Frustraciones: convertir monedas a mano, perder visibilidad de gastos en efectiv
 ### Arquitectura de información
 Sitemap de 2 niveles, sin drill-in: todo vive en un único Dashboard, incluida la expansión inline de "¿Puedo pagar esto?" y el reporte final al terminar un viaje — decisión tomada explícitamente para simplificar navegación y reducir superficie de desarrollo dado el presupuesto de tiempo.
 
-Ver `Site Map.png` y `UserFlow.png` en `/docs/assets/`.
+Ver [`Site Map.png`](./assets/Site%20Map.png) y [`UserFlow.png`](./assets/UserFlow.png) en `/docs/assets/`.
 
 ### Evolución visual
 La dirección visual se exploró primero con Stitch (3 estilos: Warm Alabaster, Organic Neo-Mint, Playful Pop Mood) antes de convergir en la paleta final, y luego se tokenizó completamente contra el archivo real de marca de Alegra en Figma (tipografía Sora + Public Sans, paleta de estados, radios) — el proceso completo de tokenización, incluyendo discrepancias encontradas y corregidas entre el código y el Figma real, está documentado en `colaboracion-con-ia.md`.
@@ -191,8 +191,8 @@ Directamente ligado a las Hypothesis Statements originales:
 
 ## Índice de material de apoyo
 
-- Research completo: `/docs/research/Travelers-Budgets-and-Expenses.pdf`
-- Sketches de Crazy 8's: `/docs/assets/crazy8s/`
+- Research completo: `/docs/research/Travelers_Budgets_and_Expenses.pdf`
+- Sketches de Crazy 8's: `/docs/assets/crazy8's/`
 - Evolución visual (Stitch): `/docs/assets/stitch/`
 - User Flow y Site Map: `/docs/assets/`
 - Archivo de Figma (tokens, componentes): enlace en `AGENTS.md`
