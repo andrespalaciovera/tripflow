@@ -20,6 +20,8 @@ A travel budget tracking webapp. Three core features: expense dashboard, trip cr
 - **Persistence:** `localStorage`, exclusively through a single data layer
 - **Deploy:** Cloudflare Pages
 
+> **OpenRouter model (as of 2026-08-25):** The extraction endpoint (`/api/extract-receipt`) uses `google/gemini-2.5-flash` (a paid, specific model) instead of the free auto-router (`openrouter/free`), for reliability — the free router showed inconsistent latency (9–40s) and occasional null extractions during testing. Cost per call is negligible (fractions of a cent) given typical receipt image sizes. A per-key spending limit is set on the OpenRouter account as a safety cap.
+
 ### Persistence rule (non-negotiable)
 
 All data reads/writes go through `/lib/store.ts`. No component calls `localStorage` directly. Expected functions: `getTrips()`, `getTrip(id)`, `saveTrip(trip)`, `deleteTrip(id)`, `getExpenses(tripId)`, `saveExpense(expense)`, `deleteExpense(id)`.
@@ -105,9 +107,18 @@ This is a distinct rule from "Can I afford this?" above: that one is prospective
 ### "Recent expenses"
 Only shows expenses for the **Activo** trip. It is not a cross-trip feed.
 
+### Time-of-day greeting
+The header greeting ('Buenos días'/'Buenas tardes'/'Buenas noches') is always based on the current time in Bogotá (America/Bogota timezone), regardless of the user's device timezone — never use local device time for this.
+
+05:00–11:59 → 'Buenos días' ☀️
+12:00–18:59 → 'Buenas tardes' 🌤️
+19:00–04:59 → 'Buenas noches' 🌙
+
 ---
 
 ## 4. Tokens — `tailwind.config.js`
+
+> **Compact density scale (as of 2026-08-25).** The app uses a deliberately compact density scale, smaller than the original Figma mockup's values, because the fixed 100vh app-shell layout (no page scroll) needs tighter proportions to avoid excessive internal column scrolling. Figma's original spacious values remain the reference for **visual style** (colors, radii, component shapes) but **not** for exact type/spacing sizes — the values below are the canonical source of truth for sizing going forward.
 
 ```js
 module.exports = {
@@ -220,6 +231,13 @@ Country (7 options: United States, Mexico, Colombia, Spain, France, Germany, Ita
 Photo upload zone (copy: "Take one or several photos of your receipts" — note: the MVP currently only processes one photo/expense at a time; the copy is intentionally left this way to not block a future multi-expense version) · Title · Amount · Date (default: today)
 
 No categories — dropped due to friction.
+
+### Receipt extraction UX states
+While /api/extract-receipt is in flight, a rotating playful loading message replaces the plain 'Analizando recibo...' label, cycling every ~3 seconds through a fixed list of messages (see AddExpensesForm.jsx for the exact list).
+
+On total failure (both monto and comercio null, or a network/timeout error): show a friendly, non-scary message acknowledging the failure, then fall back to manual entry — this REPLACES the previous fully-silent-fallback behavior with a visible but lighthearted one.
+
+On partial success: if only monto was extracted, tell the user so and prompt them to fill in the título manually. If only comercio was extracted, tell the user so and prompt them to fill in the monto manually. If both were extracted, no message is shown — fields are simply pre-filled as before.
 
 ### Final report (inside the card, after "End trip")
 Budget vs. total spent · corresponding % · message based on outcome (within/over budget) · full expense history for the trip (reusing `ExpenseRow`) · "Continue" button → collapses into the compact "Finalizado" card (the trip is never deleted)

@@ -38,7 +38,7 @@ export const TripComingCard = ({ trip, onDelete }) => {
   }).format(trip.presupuesto);
 
   return (
-    <div className="bg-status-proximo-bg rounded-lg shadow-soft p-6 w-full max-w-md">
+    <div className="bg-status-proximo-bg rounded-lg shadow-soft p-5 w-full max-w-md">
       {/* Encabezado: Estado y Motivo */}
       <div className="flex justify-between items-start">
         <StatusBadge status="proximo" />
@@ -95,7 +95,7 @@ export const TripComingCard = ({ trip, onDelete }) => {
           </span>
           
           {/* Contenedor de la barra de progreso */}
-          <div className="w-32 h-2 rounded-full bg-status-proximo-text/20 overflow-hidden">
+          <div className="w-32 h-3 rounded-full bg-overlay-white overflow-hidden">
             <div 
               className="h-full bg-status-proximo-text rounded-full transition-all duration-500 ease-in-out"
               style={{ width: `${progreso}%` }}

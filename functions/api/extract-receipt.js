@@ -15,11 +15,12 @@
 
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
 
-// Auto-router de OpenRouter para modelos gratuitos con visión: más resiliente
-// que fijar un modelo específico, ya que la lista de modelos gratuitos rota
-// con frecuencia. Confirmado contra /api/v1/models: existe, es gratuito
-// (pricing 0/0) y su modalidad es "text+image->text".
-const MODEL = 'openrouter/free';
+// Modelo de visión específico vía OpenRouter. Reemplazó al auto-router gratuito
+// (openrouter/free) el 2026-08-25 por inconsistencias de latencia (9-40s)
+// y extracciones nulas frecuentes durante las pruebas. El costo por llamada
+// es insignificante dado el tamaño típico de un recibo. El gasto se controla
+// con un límite de saldo por llave en la cuenta de OpenRouter.
+const MODEL = 'google/gemini-2.5-flash';
 
 const PROMPT = `Analiza esta foto de un recibo o factura y extrae exactamente dos datos:
 1. monto: el monto TOTAL de la compra, como número (sin símbolos de moneda ni separadores de miles). Si no se ve con certeza, usa null.

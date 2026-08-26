@@ -29,15 +29,15 @@ export const TripCompletedCard = ({ trip, totalGastado }) => {
   const { destino, presupuestoTotal } = trip;
 
   return (
-    <div className="bg-status-finalizado-bg rounded-lg shadow-soft p-6 w-full max-w-md">
+    <div className="bg-status-finalizado-bg rounded-lg shadow-soft p-5 w-full max-w-md">
       {/* Encabezado: título del reporte y destino, apilados verticalmente */}
-      <div className="mb-6">
+      <div className="mb-4">
         <h2 className="text-h2 font-display text-ink-primary">Reporte de gastos</h2>
         <h2 className="text-h2 font-display text-ink-primary">{destino}</h2>
       </div>
 
       {/* Fila de resumen: presupuesto vs. gasto total */}
-      <div className="grid grid-cols-2 gap-8">
+      <div className="grid grid-cols-2 gap-6">
         <div>
           <p className="text-label font-body text-ink-muted">Presupuesto</p>
           <p className="text-body font-body text-ink-primary">{formatearMoneda(presupuestoTotal)}</p>

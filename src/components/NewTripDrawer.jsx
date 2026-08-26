@@ -1,50 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import Button from './Button';
 import Input from './Input';
+import CountrySelect from './CountrySelect';
+import DatePicker from './DatePicker';
 import { saveTrip } from '../lib/store';
 import { calcularDiasTotales, obtenerPresupuestoSugerido, derivarMonedaDesdePais, convertirCOPaLocal } from '../lib/budget';
-
-/**
- * Lista fija de los 7 países disponibles para el MVP (AGENTS.md §7), usando
- * exactamente los mismos nombres que la tabla de tasas de budget.js.
- */
-const DESTINOS = ['Estados Unidos', 'México', 'Colombia', 'España', 'Francia', 'Alemania', 'Italia'];
-
-/**
- * Icono de flecha para el <select> de destino (reemplaza la flecha nativa).
- */
-const IconoFlecha = () => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    fill="none"
-    viewBox="0 0 24 24"
-    strokeWidth={2}
-    stroke="currentColor"
-    className="w-4 h-4 text-ink-muted"
-  >
-    <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
-  </svg>
-);
-
-/**
- * Icono de calendario usado como prefijo de los campos de fecha.
- */
-const IconoCalendario = () => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    fill="none"
-    viewBox="0 0 24 24"
-    strokeWidth={1.8}
-    stroke="currentColor"
-    className="w-4 h-4 text-ink-muted"
-  >
-    <path
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5"
-    />
-  </svg>
-);
 
 /**
  * Icono de cierre 'X' para el botón del encabezado del drawer.
@@ -236,29 +196,14 @@ export const NewTripDrawer = ({ isOpen, onClose, onSave }) => {
         </div>
 
         {/* Cuerpo del formulario */}
-        <div className="flex-1 flex flex-col gap-6 px-6 py-6">
+        <div className="flex-1 flex flex-col gap-4 px-5 py-5">
           {/* Campo 1: Lugar */}
           <div className="flex flex-col gap-2 w-full">
             <label className="text-label font-body text-ink-primary">Lugar</label>
-            <div className="relative w-full">
-              <select
-                value={destino}
-                onChange={(e) => setDestino(e.target.value)}
-                className="w-full h-14 appearance-none bg-surface border border-stroke-form rounded-md px-4 pr-10 text-body text-ink-primary outline-none focus:border-ink-primary transition-colors"
-              >
-                <option value="" disabled>
-                  Selecciona un destino
-                </option>
-                {DESTINOS.map((pais) => (
-                  <option key={pais} value={pais}>
-                    {pais}
-                  </option>
-                ))}
-              </select>
-              <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2">
-                <IconoFlecha />
-              </span>
-            </div>
+            <CountrySelect
+              value={destino}
+              onChange={setDestino}
+            />
             {errores.pais && <span className="text-label text-alert-max px-1">{errores.pais}</span>}
           </div>
 
@@ -292,19 +237,15 @@ export const NewTripDrawer = ({ isOpen, onClose, onSave }) => {
             <label className="text-label font-body text-ink-primary">Fechas del viaje</label>
             <div className="flex flex-col sm:flex-row gap-4 w-full">
               <div className="flex-1 min-w-0">
-                <Input
-                  type="date"
-                  prefix={<IconoCalendario />}
+                <DatePicker
                   value={fechaInicio}
-                  onChange={(e) => setFechaInicio(e.target.value)}
+                  onChange={setFechaInicio}
                 />
               </div>
               <div className="flex-1 min-w-0">
-                <Input
-                  type="date"
-                  prefix={<IconoCalendario />}
+                <DatePicker
                   value={fechaFin}
-                  onChange={(e) => setFechaFin(e.target.value)}
+                  onChange={setFechaFin}
                 />
               </div>
             </div>

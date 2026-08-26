@@ -144,13 +144,13 @@ export const TripActiveCard = ({ trip, totalGastado, mostrarEnCop = true, onFina
     const montoRestanteODeuda = esBueno ? presupuestoTotal - totalGastado : totalGastado - presupuestoTotal;
 
     return (
-      <div className="relative overflow-hidden bg-status-activo-bg rounded-lg shadow-soft p-6 w-full max-w-md">
+      <div className="relative overflow-hidden bg-status-activo-bg rounded-lg shadow-soft p-5 w-full max-w-md">
         {/* Encabezado: sin badges, solo el título del reporte y el destino */}
         <h2 className="text-h2 font-display text-ink-primary">Reporte de gastos</h2>
-        <h2 className="text-h2 font-display text-ink-primary mb-6">{destino}</h2>
+        <h2 className="text-h2 font-display text-ink-primary mb-4">{destino}</h2>
 
         {/* Fila de resumen: presupuesto vs. gasto total */}
-        <div className="flex gap-8 mb-6">
+        <div className="flex gap-6 mb-4">
           <div>
             <p className="text-label font-body text-ink-muted">Presupuesto</p>
             <p className="text-body font-body text-ink-primary">
@@ -166,14 +166,14 @@ export const TripActiveCard = ({ trip, totalGastado, mostrarEnCop = true, onFina
         </div>
 
         {/* Fila del anillo de gasto + monto restante o deuda */}
-        <div className="flex items-center gap-6 mb-6">
+        <div className="flex items-center gap-4 mb-4">
           {/* Izquierda: anillo de porcentaje gastado */}
           <div className="flex flex-col items-center gap-2">
             <p className="text-label font-body text-ink-muted text-center">Gasto</p>
             <div className="relative w-20 h-20 shrink-0">
               <svg viewBox="0 0 80 80" className="w-20 h-20 -rotate-90">
                 {/* Pista de fondo */}
-                <circle cx="40" cy="40" r={radio} fill="none" strokeWidth="8" className="stroke-bg-surface" />
+                <circle cx="40" cy="40" r={radio} fill="none" strokeWidth="8" className="stroke-overlay-w" />
                 {/* Progreso de gasto */}
                 <circle
                   cx="40"
@@ -187,9 +187,8 @@ export const TripActiveCard = ({ trip, totalGastado, mostrarEnCop = true, onFina
                   strokeDashoffset={desplazamiento}
                 />
               </svg>
-              {/* Porcentaje centrado dentro del anillo */}
               <div className="absolute inset-0 flex items-center justify-center">
-                <span className="text-h3 font-display text-ink-primary">
+                <span className="text-ring-percent font-body text-ink-primary">
                   {Math.round(porcentajeGastado)}%
                 </span>
               </div>
@@ -238,14 +237,21 @@ export const TripActiveCard = ({ trip, totalGastado, mostrarEnCop = true, onFina
   }
 
   return (
-    <div className="relative overflow-hidden bg-status-activo-bg rounded-lg shadow-soft p-6 w-full max-w-md mx-auto">
+    <div className="relative overflow-hidden bg-status-activo-bg rounded-lg shadow-soft p-5 w-full max-w-md mx-auto">
       {/* Encabezado: Badge de estado y acción de finalizar */}
       <div className="flex justify-between items-center mb-5">
         <StatusBadge status="activo" />
-        {/* Nota: "success-outline" corresponde a la variante 'tertiary' de Button.jsx */}
-        <Button variant="tertiary" onClick={() => setMostrarConfirmacion(true)}>
+        {/* Botón de finalizar como enlace sutil */}
+        <button 
+          type="button" 
+          onClick={() => setMostrarConfirmacion(true)} 
+          className="flex items-center gap-1.5 text-label font-body font-semibold text-status-activo-text transition-all hover:underline hover:opacity-80 focus:outline-none"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
+            <rect x="4" y="4" width="16" height="16" rx="4" />
+          </svg>
           Finalizar viaje
-        </Button>
+        </button>
       </div>
 
       {/* Título: Destino a la izquierda, Motivo alineado a la derecha */}
@@ -258,7 +264,7 @@ export const TripActiveCard = ({ trip, totalGastado, mostrarEnCop = true, onFina
       </div>
 
       {/* Presupuesto inicial */}
-      <div className="mb-6">
+      <div className="mb-4">
         <p className="text-label font-body text-ink-muted">Presupuesto inicial</p>
         <p className="text-body font-body text-ink-primary">
           {formatearMontoSegunModoMoneda(presupuestoTotal, destino, mostrarEnCop)}
@@ -266,7 +272,7 @@ export const TripActiveCard = ({ trip, totalGastado, mostrarEnCop = true, onFina
       </div>
 
       {/* Sección de medidores: anillo de progreso + barra de días */}
-      <div className="flex items-center gap-6 mb-6">
+      <div className="flex items-center gap-4 mb-4">
         {/* Izquierda: Anillo de progreso de presupuesto gastado */}
         <div className="flex flex-col items-center">
           <p className="text-label font-body text-ink-muted mb-2">Gasto</p>
@@ -279,7 +285,7 @@ export const TripActiveCard = ({ trip, totalGastado, mostrarEnCop = true, onFina
                 r={radio}
                 fill="none"
                 strokeWidth="8"
-                className="stroke-bg-surface"
+                className="stroke-overlay-w"
               />
               {/* Progreso de gasto */}
               <circle
@@ -294,9 +300,8 @@ export const TripActiveCard = ({ trip, totalGastado, mostrarEnCop = true, onFina
                 strokeDashoffset={desplazamiento}
               />
             </svg>
-            {/* Porcentaje centrado dentro del anillo */}
             <div className="absolute inset-0 flex items-center justify-center">
-              <span className="text-h3 font-display text-ink-primary">
+              <span className="text-ring-percent font-body text-ink-primary">
                 {Math.round(porcentajeGastado)}%
               </span>
             </div>
@@ -317,7 +322,7 @@ export const TripActiveCard = ({ trip, totalGastado, mostrarEnCop = true, onFina
           </p>
 
           {/* Barra de progreso lineal de días transcurridos */}
-          <div className="bg-bg-surface h-2 rounded-full w-full overflow-hidden">
+          <div className="bg-overlay-w h-3 rounded-full w-full overflow-hidden">
             <div
               className="bg-status-activo-text h-full rounded-full transition-all duration-500 ease-in-out"
               style={{ width: `${porcentajeDias}%` }}
@@ -327,7 +332,7 @@ export const TripActiveCard = ({ trip, totalGastado, mostrarEnCop = true, onFina
       </div>
 
       {/* Sección inferior: gasto diario disponible (tarjeta blanca de solo texto) */}
-      <div className="bg-bg-surface rounded-md p-4">
+      <div className="bg-overlay-w rounded-xs p-3">
         <p className="text-body font-body text-ink-primary">Cada día restante puedes gastar</p>
         <p className="text-h3 font-display text-ink-primary mt-1">
           {formatearMontoSegunModoMoneda(presupuestoDiarioRestante, destino, mostrarEnCop)}
@@ -381,7 +386,7 @@ export const TripActiveCard = ({ trip, totalGastado, mostrarEnCop = true, onFina
           >
             <p className="text-body font-body text-ink-primary">El gasto representaría</p>
 
-            <div className="flex justify-evenly gap-8 mt-2">
+            <div className="flex justify-evenly gap-6 mt-2">
               {/* Columna 1: porcentaje sobre el presupuesto diario */}
               <div className="flex flex-col items-center text-center">
                 <p className="text-h2 font-display text-ink-primary">

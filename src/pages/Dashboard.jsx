@@ -20,6 +20,7 @@ import {
   convertirLocalACOP,
   formatearMontoSegunModoMoneda,
 } from '../lib/budget';
+import { obtenerSaludo } from '../lib/saludo';
 
 /**
  * Convierte una marca de tiempo ISO en un texto relativo corto ("hace 1h", "hace 2d").
@@ -41,6 +42,9 @@ const formatearTiempoRelativo = (creadoEnIso) => {
  * se deriva con calcularEstadoViaje() de /lib/budget.js — nunca es un campo propio.
  */
 export const Dashboard = () => {
+  // Saludo dinámico según la hora en Bogotá
+  const { texto: saludoTexto, emoji: saludoEmoji } = obtenerSaludo();
+
   // Lista de viajes leída del store; única fuente de verdad para "Tus viajes"
   const [viajes, setViajes] = useState([]);
 
@@ -243,28 +247,42 @@ export const Dashboard = () => {
 
   return (
     <div className="min-h-screen w-full bg-bg-body font-body text-ink-primary flex flex-col">
-      {/* Barra de navegación superior: logo + acciones globales (interruptor, nuevo viaje) */}
-      <TopNavbar
-        onCurrencyChange={setMostrarEnCop}
-        onNewTrip={() => setIsNewTripDrawerOpen(true)}
-      />
+      {/* Barra de navegación superior y encabezado (pegajoso en escritorio para vista con viajes) */}
+      {viajes.length > 0 ? (
+        <div className="lg:sticky lg:top-0 lg:z-30">
+          <TopNavbar
+            onCurrencyChange={setMostrarEnCop}
+            onNewTrip={() => setIsNewTripDrawerOpen(true)}
+            hasTrips={true}
+          />
+          <div className="bg-bg-body border-b border-stroke-form px-4 md:px-6 py-6 md:py-8">
+            <div className="w-full max-w-6xl mx-auto">
+              <h1 className="text-h1 font-display text-ink-primary">{saludoTexto} {saludoEmoji}</h1>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <TopNavbar
+          onCurrencyChange={setMostrarEnCop}
+          onNewTrip={() => setIsNewTripDrawerOpen(true)}
+          hasTrips={false}
+        />
+      )}
 
-      <main className="flex-1 w-full max-w-6xl mx-auto px-4 md:px-6 py-8 md:py-10">
+      <main className="flex-1 w-full max-w-6xl mx-auto px-4 md:px-6 py-6 md:py-8">
         {viajes.length === 0 ? (
           <div className="flex flex-col items-center justify-center flex-1 h-full min-h-[60vh] text-center px-4">
-            <h1 className="text-h1 font-display text-ink-primary mb-4">Buenos días ☀️</h1>
+            <h1 className="text-h1 font-display text-ink-primary mb-4">{saludoTexto} {saludoEmoji}</h1>
             <h2 className="text-h2 font-display text-ink-primary mb-2">Aun no tienes viajes planeados</h2>
-            <p className="text-body font-body text-ink-muted max-w-md">Crea tu primer viaje para empezar a controlar tu presupuesto y organizar tus gastos de forma sencilla.</p>
+            <p className="text-body font-body text-ink-muted max-w-md mb-4">Crea tu primer viaje para empezar a controlar tu presupuesto y organizar tus gastos de forma sencilla.</p>
+            <Button variant="primary" onClick={() => setIsNewTripDrawerOpen(true)}>
+              Programar viaje
+            </Button>
           </div>
         ) : (
           <>
-            {/* Encabezado: saludo */}
-            <div className="mb-8">
-              <h1 className="text-h1 font-display text-ink-primary">Buenos días ☀️</h1>
-            </div>
-
             {/* Layout de dos columnas: viajes a la izquierda, gastos a la derecha */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
               {/* Columna izquierda: "Tus viajes".
                * El título vive fuera de cualquier contenedor de scroll.
                * Móvil: MobileSlider (1 a 1 con puntos de paginación).
@@ -274,7 +292,7 @@ export const Dashboard = () => {
 
                 {viajes.length === 0 ? (
                   /* Estado vacío: se muestra cuando aún no existe ningún viaje en el store */
-                  <div className="flex flex-col items-center justify-center flex-1 h-full border-2 border-dashed border-stroke-form rounded-lg p-8 mt-4">
+                  <div className="flex flex-col items-center justify-center flex-1 h-full border-2 border-dashed border-stroke-form rounded-lg p-6 mt-4">
                     <p className="text-body font-body text-ink-muted text-center">
                       No has creado ningún viaje aún.
                     </p>
@@ -329,10 +347,15 @@ export const Dashboard = () => {
                 Misma fuente (activeTripExpenses) que totalGastado en TripActiveCard.
                 gasto.monto está en la moneda local del viaje: se convierte a COP
                 primero y formatearMontoSegunModoMoneda decide, según el interruptor,
-                si se muestra así o se vuelve a convertir a la moneda local para mostrar. */}
-                {activeTripExpenses.length === 0 ? (
+                si se muestra así o se vuelve a convertir a la moneda local para mostrar.
+                Nota: el guard `viajeActivo &&` es necesario para evitar un crash por estado
+                obsoleto — hay un ciclo de render donde viajeActivo ya es undefined pero
+                activeTripExpenses todavía contiene los datos del viaje finalizado, antes
+                de que el useEffect los limpie. Sin el guard, el map intentaría leer
+                viajeActivo.pais y provocaría un TypeError. */}
+                {viajeActivo && (activeTripExpenses.length === 0 ? (
                   /* Estado vacío: sin gastos registrados para el viaje Activo */
-                  <div className="flex flex-col items-center justify-center h-full min-h-[200px] border-2 border-dashed border-stroke-form rounded-lg p-8">
+                  <div className="flex flex-col items-center justify-center h-full min-h-[200px] border-2 border-dashed border-stroke-form rounded-lg p-6">
                     <p className="text-body font-body text-ink-muted text-center">
                       No se ha agregado ningún gasto.
                     </p>
@@ -357,7 +380,7 @@ export const Dashboard = () => {
                       />
                     ))}
                   </div>
-                )}
+                ))}
               </section>
             </div>
             {/* Botón móvil "+ Nuevo viaje" — solo cuando hay un viaje Activo.

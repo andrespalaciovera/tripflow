@@ -31,7 +31,7 @@ export const ExpenseRow = ({
 
   return (
     <div
-      className={`w-full flex justify-between items-center bg-list-item rounded-sm relative overflow-hidden py-3 pr-4 pl-6 ${className}`}
+      className={`w-full flex justify-between items-center bg-bg-list-item rounded-sm relative overflow-hidden py-3 pr-4 pl-6 ${className}`}
     >
       {/* Barra lateral de acento de riesgo absoluta en el extremo izquierdo */}
       <span className={`absolute left-0 top-0 bottom-0 w-2 ${colorBarraAcento}`} />

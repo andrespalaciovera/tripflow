@@ -18,17 +18,18 @@ import AddExpensesForm from './AddExpensesForm';
  * @param {Function} props.onGuardar - Callback al guardar el gasto con éxito
  */
 const ResponsiveExpenseWrapper = ({ isOpen, onClose, trip, onGuardar }) => {
-  // Prevenir scroll en el body cuando el modal está abierto en móvil
+  // Bloquea el scroll del body solo en móvil (< 768px), donde el componente
+  // actúa como un Bottom Sheet modal. En escritorio el formulario es inline y
+  // bloquear el scroll impediría desplazarse por el Dashboard — bug real.
   useEffect(() => {
-    // Solo bloqueamos el scroll si estamos en móvil (asumiendo que en desktop es inline y no interfiere)
-    // Una forma simple es verificar window.innerWidth, pero Tailwind md: anula el overlay de todos modos.
-    // Para ser seguros, bloqueamos el scroll globalmente cuando isOpen es true, ya que la intención
-    // en móvil es modal y en desktop la vista inline podría tolerarlo temporalmente.
-    if (isOpen) {
+    const isMobile = !window.matchMedia('(min-width: 768px)').matches;
+
+    if (isOpen && isMobile) {
       document.body.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = '';
     }
+
     return () => {
       document.body.style.overflow = '';
     };
@@ -54,7 +55,7 @@ const ResponsiveExpenseWrapper = ({ isOpen, onClose, trip, onGuardar }) => {
       */}
       <div 
         className="
-          fixed inset-x-0 bottom-0 z-[60] max-h-[90vh] overflow-y-auto bg-bg-body rounded-t-[20px] p-4 shadow-[0_-10px_40px_rgba(0,0,0,0.1)]
+          fixed inset-x-0 bottom-0 z-[60] max-h-[90vh] overflow-y-auto bg-bg-navbar-forms rounded-t-[20px] p-4 shadow-[0_-10px_40px_rgba(0,0,0,0.1)]
           md:static md:inset-auto md:z-auto md:max-h-none md:overflow-visible md:bg-transparent md:rounded-none md:p-0 md:shadow-none
         "
       >

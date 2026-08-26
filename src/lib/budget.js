@@ -227,7 +227,7 @@ export const calcularEstadoViaje = (trip) => {
  * @returns {number} Presupuesto sugerido en COP
  */
 export const obtenerPresupuestoSugerido = (motivo, diasTotales) =>
-  diasTotales * (motivo === 'negocios' ? 250000 : 150000);
+  diasTotales * (motivo === 'negocios' ? 400000 : 300000);
 
 /**
  * Moneda en la que normalmente se factura cada uno de los 7 países del modelo
