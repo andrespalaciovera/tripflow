@@ -108,6 +108,8 @@ Each saved expense is color-coded by comparing its amount (converted to COP) aga
 
 This is a distinct rule from "Can I afford this?" above: that one is prospective (evaluated before spending, against the fluctuating remaining daily budget); this one is retroactive (colors already-saved expenses in "Recent expenses", against the fixed original daily budget).
 
+When `presupuestoRestante <= 0` (all budget spent or exceeded), TripActiveCard's ring, "Te quedan" line, and daily-spend box switch to `alert-max` coloring and show a fallback message instead of a negative number — negative currency values are never shown to the user.
+
 ### "Recent expenses"
 Only shows expenses for the **Activo** trip. It is not a cross-trip feed.
 

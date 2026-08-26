@@ -295,7 +295,10 @@ export const TripActiveCard = ({ trip, totalGastado, mostrarEnCop = true, onFina
                 fill="none"
                 strokeWidth="8"
                 strokeLinecap="round"
-                className="stroke-status-activo-text transition-all duration-500 ease-in-out"
+                className={[
+                  presupuestoRestante <= 0 ? 'stroke-alert-max' : 'stroke-status-activo-text',
+                  'transition-all duration-500 ease-in-out',
+                ].join(' ')}
                 strokeDasharray={circunferencia}
                 strokeDashoffset={desplazamiento}
               />
@@ -312,8 +315,10 @@ export const TripActiveCard = ({ trip, totalGastado, mostrarEnCop = true, onFina
         <div className="flex-1 flex flex-col gap-2">
           <div>
             <p className="text-label font-body text-ink-muted">Te quedan</p>
-            <p className="text-body font-body text-ink-primary">
-              {formatearMontoSegunModoMoneda(presupuestoRestante, destino, mostrarEnCop)}
+            <p className={`text-body font-body ${presupuestoRestante <= 0 ? 'text-alert-max' : 'text-ink-primary'}`}>
+              {presupuestoRestante <= 0
+                ? 'Sin presupuesto disponible'
+                : formatearMontoSegunModoMoneda(presupuestoRestante, destino, mostrarEnCop)}
             </p>
           </div>
 
@@ -332,12 +337,21 @@ export const TripActiveCard = ({ trip, totalGastado, mostrarEnCop = true, onFina
       </div>
 
       {/* Sección inferior: gasto diario disponible (tarjeta blanca de solo texto) */}
-      <div className="bg-overlay-w rounded-xs p-3">
-        <p className="text-body font-body text-ink-primary text-center">Cada día restante puedes gastar</p>
-        <p className="text-h2 font-display text-ink-primary mt-1 text-center">
-          {formatearMontoSegunModoMoneda(presupuestoDiarioRestante, destino, mostrarEnCop)}
-        </p>
-      </div>
+      {presupuestoRestante <= 0 ? (
+        <div className="bg-alert-max/15 rounded-xs p-3">
+          <p className="text-body font-body text-alert-max text-center">Ya no tienes presupuesto disponible</p>
+          <p className="text-label font-body text-alert-max mt-1 text-center">
+            Considera ajustar tus gastos restantes
+          </p>
+        </div>
+      ) : (
+        <div className="bg-overlay-w rounded-xs p-3">
+          <p className="text-body font-body text-ink-primary text-center">Cada día restante puedes gastar</p>
+          <p className="text-h2 font-display text-ink-primary mt-1 text-center">
+            {formatearMontoSegunModoMoneda(presupuestoDiarioRestante, destino, mostrarEnCop)}
+          </p>
+        </div>
+      )}
 
       {/* Acción principal: fuera y debajo de la tarjeta blanca */}
       {vistaActual === 'DEFAULT' && (
