@@ -144,7 +144,7 @@ export const TripActiveCard = ({ trip, totalGastado, mostrarEnCop = true, onFina
     const montoRestanteODeuda = esBueno ? presupuestoTotal - totalGastado : totalGastado - presupuestoTotal;
 
     return (
-      <div className="relative overflow-hidden bg-status-activo-bg rounded-lg shadow-soft p-5 w-full max-w-md">
+      <div className="relative overflow-hidden bg-status-activo-bg rounded-lg shadow-soft p-5 w-full max-w-md animate-fade-in-up">
         {/* Encabezado: sin badges, solo el título del reporte y el destino */}
         <h2 className="text-h2 font-display text-ink-primary">Reporte de gastos</h2>
         <h2 className="text-h2 font-display text-ink-primary mb-4">{destino}</h2>
@@ -339,97 +339,104 @@ export const TripActiveCard = ({ trip, totalGastado, mostrarEnCop = true, onFina
         </p>
       </div>
 
-      {/* Acción principal: fuera y debajo de la tarjeta blanca */}
-      {vistaActual === 'DEFAULT' && (
-        <Button
-          variant="tertiary"
-          className="w-full mt-4"
-          onClick={() => {
-            setVistaActual('CALCULATOR');
-            onCalcularPago?.();
-          }}
-        >
-          Calcula si puedes pagarlo
-        </Button>
-      )}
-
-      {vistaActual === 'CALCULATOR' && (
-        <div className="mt-4">
-          <p className="text-body font-body text-ink-primary mb-2">
-            Ingresa el valor en la moneda local
-          </p>
-
-          <Input
-            type="number"
-            prefix="$"
-            placeholder="Ej. $ 400"
-            value={valorIngresado}
-            onChange={(evento) => setValorIngresado(evento.target.value)}
-          />
-
-          <Button variant="primary" className="w-full mt-4" onClick={manejarCalculo}>
-            Calcular
-          </Button>
-        </div>
-      )}
-
-      {/* Bloque de resultado: muestra el impacto del gasto sobre el presupuesto diario y total */}
-      {(vistaActual === 'RESULT_GOOD' || vistaActual === 'RESULT_BAD') && (
-        <>
-          <div
-            className={[
-              'border rounded-md p-4 mt-4 mb-4',
-              vistaActual === 'RESULT_BAD'
-                ? 'border-alert-max bg-alert-max/20'
-                : 'border-status-activo-text bg-status-activo-text/10',
-            ].join(' ')}
-          >
-            <p className="text-body font-body text-ink-primary">El gasto representaría</p>
-
-            <div className="flex justify-evenly gap-6 mt-2">
-              {/* Columna 1: porcentaje sobre el presupuesto diario */}
-              <div className="flex flex-col items-center text-center">
-                <p className="text-h2 font-display text-ink-primary">
-                  {porcentajesCalculados.porcentajeDiario}%
-                </p>
-                <p className="text-label font-body text-ink-muted">De tu presupuesto diario</p>
-              </div>
-
-              {/* Columna 2: porcentaje sobre el presupuesto total */}
-              <div className="flex flex-col items-center text-center">
-                <p className="text-h2 font-display text-ink-primary">
-                  {porcentajesCalculados.porcentajeTotal}%
-                </p>
-                <p className="text-label font-body text-ink-muted">De tu presupuesto total</p>
-              </div>
+      {/* Sección inferior dinámica: Calculadora y resultados */}
+      <div className="grid transition-[grid-template-rows,opacity] duration-500 ease-ios grid-rows-[1fr]">
+        <div className="overflow-hidden">
+          {/* Acción principal: fuera y debajo de la tarjeta blanca */}
+          {vistaActual === 'DEFAULT' && (
+            <div className="animate-fade-in mt-4">
+              <Button
+                variant="tertiary"
+                className="w-full"
+                onClick={() => {
+                  setVistaActual('CALCULATOR');
+                  onCalcularPago?.();
+                }}
+              >
+                Calcula si puedes pagarlo
+              </Button>
             </div>
-          </div>
+          )}
 
-          {/* Nota: "outline" corresponde a la variante 'secondary' de Button.jsx */}
-          <Button variant="secondary" className="w-full" onClick={reiniciarCalculadora}>
-            Nuevo calculo
-          </Button>
-        </>
-      )}
+          {vistaActual === 'CALCULATOR' && (
+            <div className="animate-fade-in mt-4">
+              <p className="text-body font-body text-ink-primary mb-2">
+                Ingresa el valor en la moneda local
+              </p>
+
+              <Input
+                type="number"
+                prefix="$"
+                placeholder="Ej. $ 400"
+                value={valorIngresado}
+                onChange={(evento) => setValorIngresado(evento.target.value)}
+              />
+
+              <Button variant="primary" className="w-full mt-4" onClick={manejarCalculo}>
+                Calcular
+              </Button>
+            </div>
+          )}
+
+          {/* Bloque de resultado: muestra el impacto del gasto sobre el presupuesto diario y total */}
+          {(vistaActual === 'RESULT_GOOD' || vistaActual === 'RESULT_BAD') && (
+            <div className="animate-fade-in mt-4">
+              <div
+                className={[
+                  'border rounded-md p-4 mb-4',
+                  vistaActual === 'RESULT_BAD'
+                    ? 'border-alert-max bg-alert-max/20'
+                    : 'border-status-activo-text bg-status-activo-text/10',
+                ].join(' ')}
+              >
+                <p className="text-body font-body text-ink-primary">El gasto representaría</p>
+
+                <div className="flex justify-evenly gap-6 mt-2">
+                  {/* Columna 1: porcentaje sobre el presupuesto diario */}
+                  <div className="flex flex-col items-center text-center">
+                    <p className="text-h2 font-display text-ink-primary">
+                      {porcentajesCalculados.porcentajeDiario}%
+                    </p>
+                    <p className="text-label font-body text-ink-muted">De tu presupuesto diario</p>
+                  </div>
+
+                  {/* Columna 2: porcentaje sobre el presupuesto total */}
+                  <div className="flex flex-col items-center text-center">
+                    <p className="text-h2 font-display text-ink-primary">
+                      {porcentajesCalculados.porcentajeTotal}%
+                    </p>
+                    <p className="text-label font-body text-ink-muted">De tu presupuesto total</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Nota: "outline" corresponde a la variante 'secondary' de Button.jsx */}
+              <Button variant="secondary" className="w-full" onClick={reiniciarCalculadora}>
+                Nuevo calculo
+              </Button>
+            </div>
+          )}
+        </div>
+      </div>
 
       {/* Overlay de confirmación: se superpone a la vista actual sin alterarla */}
-      {mostrarConfirmacion && (
-        <div className="absolute inset-0 z-10 flex flex-col items-center justify-center px-6 text-center bg-status-activo-bg/40 backdrop-blur-md">
-          <p className="text-h3 font-display text-ink-primary">¿Ya ha terminado su viaje?</p>
+      <div 
+        className={`absolute inset-0 z-10 flex flex-col items-center justify-center px-6 text-center bg-status-activo-bg/40 backdrop-blur-md transition-opacity duration-300 ease-ios ${mostrarConfirmacion ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+      >
+        <p className="text-h3 font-display text-ink-primary">¿Ya ha terminado su viaje?</p>
 
-          <Button variant="primary" className="w-full mt-6" onClick={manejarConfirmacionFinalizar}>
-            Sí, mostrar reporte de gastos
-          </Button>
+        <Button variant="primary" className="w-full mt-6" onClick={manejarConfirmacionFinalizar}>
+          Sí, mostrar reporte de gastos
+        </Button>
 
-          <button
-            type="button"
-            className="text-body text-ink-primary mt-4 hover:opacity-70 transition-opacity"
-            onClick={() => setMostrarConfirmacion(false)}
-          >
-            Cancelar
-          </button>
-        </div>
-      )}
+        <button
+          type="button"
+          className="text-body text-ink-primary mt-4 hover:opacity-70 transition-opacity"
+          onClick={() => setMostrarConfirmacion(false)}
+        >
+          Cancelar
+        </button>
+      </div>
     </div>
   );
 };

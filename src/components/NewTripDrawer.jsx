@@ -178,16 +178,18 @@ export const NewTripDrawer = ({ isOpen, onClose, onSave }) => {
     onClose();
   };
 
-  // El drawer no se renderiza en absoluto si está cerrado
-  if (!isOpen) return null;
-
   return (
     <>
       {/* Fondo oscuro semitransparente que cubre toda la pantalla */}
-      <div className="fixed inset-0 bg-ink-primary/40 z-40" onClick={manejarCancelar} />
+      <div 
+        className={`fixed inset-0 bg-ink-primary/40 z-40 transition-opacity duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`} 
+        onClick={manejarCancelar} 
+      />
 
       {/* Panel deslizante anclado al borde derecho */}
-      <div className="fixed top-0 right-0 h-full w-full max-w-md bg-bg-navbar-forms shadow-soft z-50 overflow-y-auto flex flex-col">
+      <div 
+        className={`fixed top-0 right-0 h-full w-full max-w-md bg-bg-navbar-forms shadow-soft z-50 overflow-y-auto flex flex-col transition-transform duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}
+      >
         {/* Encabezado del drawer */}
         <div className="flex items-center justify-between px-6 pt-8 pb-6 border-b border-stroke-form shrink-0">
           <h3 className="text-h3 font-display text-ink-primary">Nuevo viaje</h3>

@@ -110,7 +110,7 @@ const MobileSlider = ({ children, onTabChange }) => {
         role="tabpanel"
         aria-labelledby={`tab-${activeTab}`}
         className={[
-          'overflow-y-auto max-h-[60vh] min-h-[60vh] flex flex-col gap-4',
+          'overflow-y-auto max-h-[80vh] min-h-[60vh] flex flex-col gap-4',
           currentCards.length === 0 ? 'justify-center' : '',
         ].join(' ')}
       >

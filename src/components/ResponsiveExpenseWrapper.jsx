@@ -35,8 +35,6 @@ const ResponsiveExpenseWrapper = ({ isOpen, onClose, trip, onGuardar }) => {
     };
   }, [isOpen]);
 
-  if (!isOpen) return null;
-
   return (
     <>
       {/* 
@@ -44,7 +42,7 @@ const ResponsiveExpenseWrapper = ({ isOpen, onClose, trip, onGuardar }) => {
         ESCRITORIO: Oculto completamente (md:hidden) ya que no hay modal. 
       */}
       <div 
-        className="fixed inset-0 bg-ink-primary/40 z-[60] md:hidden" 
+        className={`fixed inset-0 bg-ink-primary/40 z-[60] md:hidden transition-opacity duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`} 
         onClick={onClose}
       />
 
@@ -54,16 +52,25 @@ const ResponsiveExpenseWrapper = ({ isOpen, onClose, trip, onGuardar }) => {
         ESCRITORIO: Anula todo lo fixed/modal para ser estático (md:static, md:p-0, etc).
       */}
       <div 
-        className="
-          fixed inset-x-0 bottom-0 z-[60] max-h-[90vh] overflow-y-auto bg-bg-navbar-forms rounded-t-[20px] p-4 shadow-[0_-10px_40px_rgba(0,0,0,0.1)]
-          md:static md:inset-auto md:z-auto md:max-h-none md:overflow-visible md:bg-transparent md:rounded-none md:p-0 md:shadow-none
-        "
+        className={`
+          fixed inset-x-0 bottom-0 z-[60] bg-bg-navbar-forms rounded-t-[20px] shadow-[0_-10px_40px_rgba(0,0,0,0.1)]
+          md:static md:inset-auto md:z-auto md:bg-transparent md:rounded-none md:shadow-none
+          grid transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)]
+          ${isOpen 
+            ? 'translate-y-0 md:grid-rows-[1fr] md:opacity-100' 
+            : 'translate-y-full md:translate-y-0 md:grid-rows-[0fr] md:opacity-0 pointer-events-none'
+          }
+        `}
       >
-        <AddExpensesForm 
-          trip={trip} 
-          onGuardar={onGuardar} 
-          onCancelar={onClose} 
-        />
+        <div className="overflow-hidden">
+          <div className="p-4 max-h-[90vh] overflow-y-auto md:p-0 md:max-h-none md:overflow-visible">
+            <AddExpensesForm 
+              trip={trip} 
+              onGuardar={onGuardar} 
+              onCancelar={onClose} 
+            />
+          </div>
+        </div>
       </div>
     </>
   );

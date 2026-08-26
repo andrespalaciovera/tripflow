@@ -47,6 +47,27 @@ export default {
       boxShadow: {
         soft: '0 10px 30px 0px rgba(0,0,0,0.03)',
       },
+      
+      // 👇 AQUÍ EMPIEZAN TUS NUEVOS TOKENS DE ANIMACIÓN 👇
+      transitionTimingFunction: {
+        'ios': 'cubic-bezier(0.32, 0.72, 0, 1)',
+      },
+      keyframes: {
+        'fade-in-up': {
+          '0%': { opacity: '0', transform: 'translateY(10px)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' },
+        },
+        'fade-in': {
+          '0%': { opacity: '0' },
+          '100%': { opacity: '1' },
+        }
+      },
+      animation: {
+        'fade-in-up': 'fade-in-up 0.4s ease-out forwards',
+        'fade-in': 'fade-in 0.3s ease-out forwards',
+      },
+      // 👆 AQUÍ TERMINAN 👆
+      
     },
   },
   plugins: [],
