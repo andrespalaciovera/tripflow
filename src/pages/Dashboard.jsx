@@ -218,10 +218,12 @@ export const Dashboard = () => {
       <TripCompletedCard
         key={viaje.id}
         trip={{
+          id: viaje.id,
           destino: viaje.nombre,
           presupuestoTotal: viaje.presupuesto_total,
         }}
         totalGastado={totalGastadoViaje}
+        onDelete={promptDeleteTrip}
       />
     );
   });
