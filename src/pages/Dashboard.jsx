@@ -10,7 +10,7 @@ import NewTripDrawer from '../components/NewTripDrawer';
 import MobileBottomBar from '../components/MobileBottomBar';
 import MobileSlider from '../components/MobileSlider';
 import ConfirmationModal from '../components/ConfirmationModal';
-import { getTrips, getExpenses, saveTrip, deleteTrip, resetAllData } from '../lib/store';
+import { getTrips, getExpenses, saveTrip, deleteTrip } from '../lib/store';
 import {
   calcularEstadoViaje,
   calcularTotalGastadoEnCop,
@@ -430,17 +430,6 @@ export const Dashboard = () => {
         }}
       />
 
-      {/* TEMP: dev-only reset button, remove before final submission */}
-      <button
-        type="button"
-        onClick={() => {
-          resetAllData();
-          window.location.reload();
-        }}
-        className="fixed bottom-4 right-4 z-50 rounded-full bg-alert-max px-3 py-2 text-xs text-ink-primary shadow-soft hover:opacity-80"
-      >
-        🗑 Reset all data (dev)
-      </button>
       {/* Modal de confirmación para eliminar viaje */}
       <ConfirmationModal
         isOpen={!!tripToDelete}
