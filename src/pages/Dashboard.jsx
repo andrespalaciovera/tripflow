@@ -347,8 +347,13 @@ export const Dashboard = () => {
                 Misma fuente (activeTripExpenses) que totalGastado en TripActiveCard.
                 gasto.monto está en la moneda local del viaje: se convierte a COP
                 primero y formatearMontoSegunModoMoneda decide, según el interruptor,
-                si se muestra así o se vuelve a convertir a la moneda local para mostrar. */}
-                {activeTripExpenses.length === 0 ? (
+                si se muestra así o se vuelve a convertir a la moneda local para mostrar.
+                Nota: el guard `viajeActivo &&` es necesario para evitar un crash por estado
+                obsoleto — hay un ciclo de render donde viajeActivo ya es undefined pero
+                activeTripExpenses todavía contiene los datos del viaje finalizado, antes
+                de que el useEffect los limpie. Sin el guard, el map intentaría leer
+                viajeActivo.pais y provocaría un TypeError. */}
+                {viajeActivo && (activeTripExpenses.length === 0 ? (
                   /* Estado vacío: sin gastos registrados para el viaje Activo */
                   <div className="flex flex-col items-center justify-center h-full min-h-[200px] border-2 border-dashed border-stroke-form rounded-lg p-6">
                     <p className="text-body font-body text-ink-muted text-center">
@@ -375,7 +380,7 @@ export const Dashboard = () => {
                       />
                     ))}
                   </div>
-                )}
+                ))}
               </section>
             </div>
             {/* Botón móvil "+ Nuevo viaje" — solo cuando hay un viaje Activo.
