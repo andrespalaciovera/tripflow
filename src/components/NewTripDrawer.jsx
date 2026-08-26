@@ -3,8 +3,8 @@ import Button from './Button';
 import Input from './Input';
 import CountrySelect from './CountrySelect';
 import DatePicker from './DatePicker';
-import { saveTrip } from '../lib/store';
-import { calcularDiasTotales, obtenerPresupuestoSugerido, derivarMonedaDesdePais, convertirCOPaLocal } from '../lib/budget';
+import { saveTrip, getTrips } from '../lib/store';
+import { calcularDiasTotales, obtenerPresupuestoSugerido, derivarMonedaDesdePais, convertirCOPaLocal, parsearFechaLocal, hayConflictoDeFechas } from '../lib/budget';
 
 /**
  * Icono de cierre 'X' para el botón del encabezado del drawer.
@@ -126,6 +126,12 @@ export const NewTripDrawer = ({ isOpen, onClose, onSave }) => {
       nuevosErrores.fechas = 'Selecciona la fecha de inicio y de fin.';
     } else if (new Date(fechaFin) < new Date(fechaInicio)) {
       nuevosErrores.fechas = 'La fecha de fin no puede ser anterior a la de inicio.';
+    } else {
+      const viajesExistentes = getTrips();
+      const conflicto = hayConflictoDeFechas(fechaInicio, fechaFin, viajesExistentes);
+      if (conflicto) {
+        nuevosErrores.fechas = `Ya tienes un viaje a ${conflicto.nombre} programado del ${conflicto.fecha_inicio} al ${conflicto.fecha_fin} — las fechas no pueden solaparse.`;
+      }
     }
 
     const presupuestoNumerico = Number(presupuesto);
@@ -246,6 +252,7 @@ export const NewTripDrawer = ({ isOpen, onClose, onSave }) => {
                 <DatePicker
                   value={fechaFin}
                   onChange={setFechaFin}
+                  defaultMonth={fechaInicio ? parsearFechaLocal(fechaInicio) : undefined}
                 />
               </div>
             </div>

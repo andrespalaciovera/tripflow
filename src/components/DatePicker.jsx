@@ -73,8 +73,9 @@ const IconoChevronDer = () => (
  * @param {string}   props.value     - Fecha seleccionada en formato YYYY-MM-DD ('' = sin selección)
  * @param {Function} props.onChange  - Callback (nuevoValor: string) => void — siempre YYYY-MM-DD
  * @param {string}   [props.label]   - Etiqueta opcional renderizada encima del trigger
+ * @param {Date}     [props.defaultMonth] - Mes inicial opcional al abrir el calendario
  */
-const DatePicker = ({ value, onChange, label }) => {
+const DatePicker = ({ value, onChange, label, defaultMonth }) => {
   const [open, setOpen] = useState(false);
   const [alignRight, setAlignRight] = useState(false);
   const containerRef = useRef(null);
@@ -142,7 +143,7 @@ const DatePicker = ({ value, onChange, label }) => {
             mode="single"
             selected={selectedDate}
             onSelect={manejarSeleccion}
-            defaultMonth={selectedDate}
+            defaultMonth={defaultMonth || selectedDate}
             components={{
               Chevron: ({ orientation }) =>
                 orientation === 'left' ? <IconoChevronIzq /> : <IconoChevronDer />,

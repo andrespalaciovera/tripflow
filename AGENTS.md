@@ -75,7 +75,7 @@ else if fecha_inicio <= today <= fecha_fin → "Activo"
 else (today > fecha_fin) → "Finalizado"
 ```
 
-Product rule: **only one trip can be "Activo" at a time.** There is no button to start a trip early — moving to "Activo" is always automatic, driven by date.
+Product rule: **only one trip can be "Activo" at a time.** There is no button to start a trip early — moving to "Activo" is always automatic, driven by date. Enforced at trip creation time in NewTripDrawer: a new trip's [fecha_inicio, fecha_fin] range may not overlap with any existing trip's range, EXCEPT trips where finalizado_manualmente === true (those can never become active again regardless of their stored dates, so they're excluded from the overlap check). Overlap is defined as: newStart <= existingEnd AND newEnd >= existingStart (inclusive boundaries — a trip ending Aug 20 and another starting Aug 20 counts as overlapping).
 
 **Finished trips are never deleted.** When a trip ends (by date or via the manual button), its card collapses into the compact "Finalizado" variant, keeping the trip and its expense history intact.
 

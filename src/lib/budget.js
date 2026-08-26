@@ -23,7 +23,7 @@
  * @param {string} fechaStr - Fecha en formato "YYYY-MM-DD"
  * @returns {Date} Medianoche local de esa fecha
  */
-const parsearFechaLocal = (fechaStr) => {
+export const parsearFechaLocal = (fechaStr) => {
   // Guarda defensiva: solo acepta el formato exacto "YYYY-MM-DD" que guardan
   // fecha_inicio y fecha_fin (AGENTS.md §3). Si llega un string con horas o
   // zona horaria (ej. un timestamp ISO completo de datos viejos en localStorage),
@@ -97,8 +97,35 @@ export const calcularDiasFaltantes = (fechaInicioStr) => {
   const diferenciaMilisegundos = inicio.getTime() - hoy.getTime();
   const dias = Math.ceil(diferenciaMilisegundos / (1000 * 3600 * 24));
 
-  // Evita valores negativos si el viaje ya debería haber comenzado
+// Evita valores negativos si el viaje ya debería haber comenzado
   return Math.max(0, dias);
+};
+
+/**
+ * Comprueba si el rango de fechas de un nuevo viaje se solapa con el de algún
+ * viaje existente que no haya sido finalizado manualmente.
+ * @param {string} nuevaFechaInicioStr - "YYYY-MM-DD"
+ * @param {string} nuevaFechaFinStr - "YYYY-MM-DD"
+ * @param {Array} viajesExistentes - Lista de viajes guardados
+ * @returns {Object|null} El primer viaje en conflicto, o null si no hay conflicto
+ */
+export const hayConflictoDeFechas = (nuevaFechaInicioStr, nuevaFechaFinStr, viajesExistentes) => {
+  const nuevoInicio = parsearFechaLocal(nuevaFechaInicioStr);
+  const nuevoFin = parsearFechaLocal(nuevaFechaFinStr);
+  nuevoInicio.setHours(0, 0, 0, 0);
+  nuevoFin.setHours(0, 0, 0, 0);
+
+  const conflicto = viajesExistentes.find(viaje => {
+    if (viaje.finalizado_manualmente) return false;
+    const viajeInicio = parsearFechaLocal(viaje.fecha_inicio);
+    const viajeFin = parsearFechaLocal(viaje.fecha_fin);
+    viajeInicio.setHours(0, 0, 0, 0);
+    viajeFin.setHours(0, 0, 0, 0);
+
+    return nuevoInicio <= viajeFin && nuevoFin >= viajeInicio;
+  });
+
+  return conflicto || null;
 };
 
 // --- Presupuesto --------------------------------------------------------
