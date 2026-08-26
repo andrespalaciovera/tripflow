@@ -420,7 +420,7 @@ export const AddExpensesForm = ({ trip, onGuardar = () => {}, onCancelar = () =>
   if (!isVisible) return null;
 
   return (
-    <div className={`bg-bg-navbar-forms rounded-lg shadow-soft p-5 ${className}`}>
+    <div className={`bg-bg-navbar-forms rounded-lg p-5 ${className}`}>
       {/* Encabezado del formulario */}
       <div className="flex justify-between items-center">
         <h3 className="text-h3 font-display text-ink-primary">Agregar gastos</h3>
