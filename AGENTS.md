@@ -24,7 +24,11 @@ A travel budget tracking webapp. Three core features: expense dashboard, trip cr
 
 ### Persistence rule (non-negotiable)
 
-All data reads/writes go through `/lib/store.ts`. No component calls `localStorage` directly. Expected functions: `getTrips()`, `getTrip(id)`, `saveTrip(trip)`, `deleteTrip(id)`, `getExpenses(tripId)`, `saveExpense(expense)`, `deleteExpense(id)`.
+All data reads/writes go through `/lib/store.js`. No component calls `localStorage` directly. Expected functions: `getTrips()`, `getTrip(id)`, `saveTrip(trip)`, `deleteTrip(id)`, `getExpenses(tripId)`, `saveExpense(expense)`, `deleteExpense(id)`.
+
+The `/src/lib` directory also contains:
+- `/lib/budget.js` — all budget math and business logic (pure functions, no store/component imports)
+- `/lib/saludo.js` — time-of-day greeting logic; returns `{ texto, emoji }` based on Bogotá time
 
 This exists so that if the project ever migrates to a real backend, only this file needs to be rewritten — nothing else.
 
@@ -78,8 +82,8 @@ Product rule: **only one trip can be "Activo" at a time.** There is no button to
 ### Suggested budget based on trip purpose (on trip creation)
 
 ```
-Vacaciones → $150,000 COP/day × trip duration
-Negocios   → $250,000 COP/day × trip duration
+Vacaciones → $300,000 COP/day × trip duration
+Negocios   → $400,000 COP/day × trip duration
 ```
 The field stays editable — this only pre-fills an initial value.
 
@@ -189,16 +193,21 @@ module.exports = {
 
 ## 5. Base components — build once, compose everything else from them
 
-Do not rewrite similar markup across screens. These 8 components are the foundation:
+Do not rewrite similar markup across screens. These are the foundational building blocks:
 
-1. **Button** — variants: primary (fill `ink-primary`, white text), outline/secondary
-2. **Card** — base shell: background + `radius-lg` + `shadow-soft`
-3. **StatusBadge** — pill colored by status (`status-activo`, `status-proximo`, `status-finalizado`)
-4. **ProgressBar** — thin bar, two variants: filled (Activo trip) and outline/empty (Próximo trip, countdown)
-5. **Input** — labeled field wrapper, used across the 3 forms
-6. **AmountPill** — amount shown in a small pill, used in expense rows
-7. **ExpenseRow** — full row: colored side accent + description + `AmountPill` + relative time
-8. **SegmentedToggle** — two options (e.g. Vacaciones/Negocios), selected = `ink-primary` fill
+**Standalone files (exist as dedicated components):**
+1. **Button** (`Button.jsx`) — variants: `primary`, `secondary`, `disabled`, `tertiary`, `icon-add`, `icon-delete`
+2. **StatusBadge** (`StatusBadge.jsx`) — pill colored by status (`status-activo`, `status-proximo`, `status-finalizado`)
+3. **Input** (`Input.jsx`) — labeled field wrapper, used across the 3 forms
+4. **ExpenseRow** (`ExpenseRow.jsx`) — full row: colored left-accent bar by risk level + description + amount pill + relative time
+
+**Currently implemented inline within their consuming components (not standalone files):**
+- **Card** shell — background + `radius-lg` + `shadow-soft` applied directly on each organism (TripActiveCard, TripComingCard, etc.)
+- **ProgressBar** — inline in TripActiveCard (budget ring) and TripComingCard (countdown bar)
+- **AmountPill** — inline markup in ExpenseRow
+- **SegmentedToggle** — inline in NewTripDrawer for the Vacaciones/Negocios selector
+
+> **Note (MVP scope):** Keeping the above four inline is acceptable for the current MVP. Extracting them into standalone files would be a low-priority post-submission improvement, not required.
 
 Do not force TripCard and the Budget Card into a single generic component with many props — they're different enough; build them separately by composing the pieces above.
 
@@ -214,7 +223,7 @@ Dashboard (= Trip list)
  └── Active trip card (expanded, in the same dashboard, no navigation to another screen):
       ├── Budget card: % ring + "Remaining" + Day X of Y + "You can spend this much per remaining day"
       ├── "Can I afford this?" (inline expansion within the same card)
-      ├── "End trip" button → confirmation (inline blur layer) → Final report (same slot)
+      ├── "End trip" button → confirmation overlay (backdrop-blur layer inside the card, with "Sí, mostrar reporte de gastos" / "Cancelar") → Final report (same slot)
       └── "Recent expenses" (Activo trip only) + "Add expenses" button → inline panel with the Add expense form
 ```
 
@@ -240,7 +249,11 @@ On total failure (both monto and comercio null, or a network/timeout error): sho
 On partial success: if only monto was extracted, tell the user so and prompt them to fill in the título manually. If only comercio was extracted, tell the user so and prompt them to fill in the monto manually. If both were extracted, no message is shown — fields are simply pre-filled as before.
 
 ### Final report (inside the card, after "End trip")
-Budget vs. total spent · corresponding % · message based on outcome (within/over budget) · full expense history for the trip (reusing `ExpenseRow`) · "Continue" button → collapses into the compact "Finalizado" card (the trip is never deleted)
+The `REPORT_GOOD` / `REPORT_BAD` view renders inside `TripActiveCard` itself (not a separate component). It shows: destination title · presupuesto vs. gasto total row · SVG spend-percentage ring + "Te quedaron" or "Debes" amount · outcome sub-card ("Quedaste dentro del presupuesto / Felicidades" or "Quedaste fuera del presupuesto, debes: X") · "Continuar" button.
+
+Presing "Continuar" calls `onFinalizar()` (Dashboard persists `finalizado_manualmente: true` to the store and refreshes) and sets `viajeFinalizado: true` inside the card, which triggers a full component swap to `TripCompletedCard`.
+
+`TripCompletedCard` is a compact read-only card showing: "Reporte de gastos" title · destination · presupuesto vs. gasto total (static, no expense list). There is no full expense history inside this collapsed card.
 
 ---
 
@@ -250,5 +263,8 @@ Budget vs. total spent · corresponding % · message based on outcome (within/ov
 - Logging expenses from multiple simultaneous photos (multiple editable rows saved in one submission)
 - Expense categories
 - Editing/deleting an already-saved expense
-- Real-time exchange rates (use fixed, hardcoded rates)
 - Real-time price scanning via camera ("Can I afford this?" with OCR) — the current "Can I afford this?" feature uses **manual amount entry**, not the camera
+
+### Already implemented (removed from backlog)
+
+**Live exchange rates** — implemented and shipped (merged via `feature/currency-api`). `/api/exchange-rate` (Cloudflare Pages Function) fetches live rates from ExchangeRate-API and caches them in-memory in `budget.js` for 1 hour. Fixed hardcoded rates (`TASAS_CONVERSION_COP`) remain as the fallback if the fetch fails, times out, or returns a missing currency. The conversion functions (`convertirLocalACOP`, `convertirCOPaLocal`) are synchronous — the live-rate refresh happens in the background and only benefits the *next* conversion call.
