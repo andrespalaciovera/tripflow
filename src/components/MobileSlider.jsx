@@ -1,71 +1,121 @@
 import React, { useState } from 'react';
 
 /**
- * Carrusel deslizable 1 a 1 — exclusivo para móvil.
- * En escritorio este componente no se renderiza directamente; el padre debe
- * ocultarlo con `md:hidden` y mostrar una columna vertical alternativa.
+ * Tabs component — exclusivo para móvil.
+ * En escritorio este componente no se renderiza; el padre lo oculta con `md:hidden`.
  *
- * Funciona con cualquier hijo: envuelve cada uno en un slide de ancho completo
- * con snap-center para garantizar que el deslizamiento sea siempre de 1 en 1.
- * Los puntos de paginación reflejan en todo momento el slide visible.
+ * Recibe como children las tarjetas de viaje ya renderizadas (TripActiveCard,
+ * TripComingCard, TripCompletedCard) y las distribuye en tres pestañas usando
+ * el nombre de función del tipo de elemento para categorizar cada hijo.
  *
  * @param {Object}          props          - Propiedades del componente
- * @param {React.ReactNode} props.children - Tarjetas o cualquier nodo a mostrar como slides
+ * @param {React.ReactNode} props.children - Tarjetas de viaje ya renderizadas
  */
 const MobileSlider = ({ children }) => {
-  // Índice del slide actualmente visible; se actualiza en cada evento scroll.
-  const [currentIndex, setCurrentIndex] = useState(0);
+  // ─── Categorización de hijos ──────────────────────────────────────────────
+  // Usamos el nombre de la función del tipo (`child.type.name`) para distinguir
+  // las tres tarjetas sin añadir props extra ni modificar Dashboard.jsx.
+  const allChildren = React.Children.toArray(children);
 
-  // Convierte los hijos en un array estable (maneja fragmentos, arrays, etc.)
-  const slides = React.Children.toArray(children);
+  const activeTrips    = allChildren.filter(c => c.type?.name === 'TripActiveCard');
+  const comingTrips    = allChildren.filter(c => c.type?.name === 'TripComingCard');
+  const endedTrips     = allChildren.filter(
+    c => c.type?.name === 'TripCompletedCard' || c.type?.name === 'TripCompletedCardComponent'
+  );
 
-  /**
-   * Calcula el slide visible a partir de la posición de scroll horizontal.
-   * Math.round convierte el scroll fraccional en un índice entero: si el usuario
-   * lleva el carrusel a mitad de camino entre dos slides, se toma el más cercano.
-   * @param {React.UIEvent<HTMLDivElement>} e
-   */
-  const handleScroll = (e) => {
-    const indice = Math.round(e.target.scrollLeft / e.target.clientWidth);
-    setCurrentIndex(indice);
-  };
+  // ─── Estado de la pestaña activa ──────────────────────────────────────────
+  // Regla de selección inicial: si hay viaje activo, arranca en 'activo';
+  // de lo contrario arranca en 'proximos'.
+  const [activeTab, setActiveTab] = useState(
+    activeTrips.length > 0 ? 'activo' : 'proximos'
+  );
+
+  // ─── Configuración de pestañas ────────────────────────────────────────────
+  const tabs = [
+    {
+      key:   'activo',
+      label: 'Activo',
+      cards: activeTrips,
+      empty: 'No hay ningún viaje activo.',
+    },
+    {
+      key:   'proximos',
+      label: 'Próximos',
+      cards: comingTrips,
+      empty: 'No hay viajes próximos.',
+    },
+    {
+      key:   'finalizados',
+      label: 'Finalizados',
+      cards: endedTrips,
+      empty: 'No hay viajes finalizados.',
+    },
+  ];
+
+  const currentCards = tabs.find(t => t.key === activeTab)?.cards ?? [];
+  const emptyMessage = tabs.find(t => t.key === activeTab)?.empty ?? '';
 
   return (
     <div className="w-full flex flex-col gap-3">
-      {/* Track de slides: scroll horizontal con snap obligatorio 1 a 1 */}
-      <div
-        className="flex items-start overflow-x-auto snap-x snap-mandatory w-full pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-        onScroll={handleScroll}
-      >
-        {slides.map((slide, indice) => (
-          // Cada slide ocupa exactamente el 100% del ancho del track (shrink-0 + w-full)
-          // y se centra con snap-center para un snap suave en todos los navegadores.
-          <div
-            key={indice}
-            className="w-full shrink-0 snap-center px-1 flex justify-center"
-          >
-            {slide}
-          </div>
-        ))}
-      </div>
 
-      {/* Puntos de paginación: solo visibles si hay más de 1 slide */}
-      {slides.length > 1 && (
-        <div className="flex justify-center items-center gap-2">
-          {slides.map((_, indice) => (
-            <span
-              key={indice}
-              className={`
-                block h-2 rounded-full transition-all duration-300
-                ${indice === currentIndex
-                  ? 'w-4 bg-ink-primary'       // Activo: píldora ancha, color principal
-                  : 'w-2 bg-stroke-form'        // Inactivo: círculo pequeño, color borde
-                }
-              `}
-            />
-          ))}
-        </div>
-      )}
+      {/* ── Barra de pestañas ─────────────────────────────────────────────── */}
+      <nav
+        className="flex items-end border-b border-stroke-form"
+        role="tablist"
+        aria-label="Filtrar viajes"
+      >
+        {tabs.map(tab => {
+          const isActive = tab.key === activeTab;
+          return (
+            <button
+              key={tab.key}
+              role="tab"
+              aria-selected={isActive}
+              aria-controls={`tab-panel-${tab.key}`}
+              id={`tab-${tab.key}`}
+              onClick={() => setActiveTab(tab.key)}
+              className={[
+                'flex-1 pb-2 text-label font-body transition-colors duration-200',
+                isActive
+                  ? 'text-ink-primary font-semibold border-b-2 border-ink-primary -mb-px'
+                  : 'text-ink-muted hover:text-ink-primary',
+              ].join(' ')}
+            >
+              {tab.label}
+              {/* Contador de tarjetas junto al label — sólo cuando hay ítems */}
+              {tab.cards.length > 0 && (
+                <span
+                  className={[
+                    'ml-1 text-label',
+                    isActive ? 'text-ink-primary' : 'text-ink-muted',
+                  ].join(' ')}
+                >
+                  ({tab.cards.length})
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </nav>
+
+      {/* ── Contenido de la pestaña activa ───────────────────────────────── */}
+      <div
+        id={`tab-panel-${activeTab}`}
+        role="tabpanel"
+        aria-labelledby={`tab-${activeTab}`}
+        className={[
+          'overflow-y-auto max-h-[60vh] min-h-[60vh] flex flex-col gap-4',
+          currentCards.length === 0 ? 'justify-center' : '',
+        ].join(' ')}
+      >
+        {currentCards.length > 0 ? (
+          currentCards
+        ) : (
+          <p className="text-body font-body text-ink-muted text-center">
+            {emptyMessage}
+          </p>
+        )}
+      </div>
     </div>
   );
 };
