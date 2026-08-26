@@ -1,27 +1,30 @@
 import React, { useEffect, useState } from 'react';
+import TripActiveCard from './TripActiveCard';
+import TripComingCard from './TripComingCard';
+import TripCompletedCard from './TripCompletedCard';
 
 /**
  * Tabs component — exclusivo para móvil.
  * En escritorio este componente no se renderiza; el padre lo oculta con `md:hidden`.
  *
  * Recibe como children las tarjetas de viaje ya renderizadas (TripActiveCard,
- * TripComingCard, TripCompletedCard) y las distribuye en tres pestañas usando
- * el nombre de función del tipo de elemento para categorizar cada hijo.
+ * TripComingCard, TripCompletedCard) y las distribuye en tres pestañas comparando
+ * la referencia del tipo de elemento (`child.type`) contra el componente importado
+ * — a diferencia de comparar por `.name`, esto es inmune al renombrado de funciones
+ * que hace el minificador de producción (Vite/esbuild).
  *
  * @param {Object}          props          - Propiedades del componente
  * @param {React.ReactNode} props.children - Tarjetas de viaje ya renderizadas
  */
 const MobileSlider = ({ children, onTabChange }) => {
   // ─── Categorización de hijos ──────────────────────────────────────────────
-  // Usamos el nombre de la función del tipo (`child.type.name`) para distinguir
-  // las tres tarjetas sin añadir props extra ni modificar Dashboard.jsx.
+  // Comparamos `child.type` por referencia contra el componente importado, no
+  // por el nombre de su función — esto evita romperse en build de producción.
   const allChildren = React.Children.toArray(children);
 
-  const activeTrips    = allChildren.filter(c => c.type?.name === 'TripActiveCard');
-  const comingTrips    = allChildren.filter(c => c.type?.name === 'TripComingCard');
-  const endedTrips     = allChildren.filter(
-    c => c.type?.name === 'TripCompletedCard' || c.type?.name === 'TripCompletedCardComponent'
-  );
+  const activeTrips    = allChildren.filter(c => c.type === TripActiveCard);
+  const comingTrips    = allChildren.filter(c => c.type === TripComingCard);
+  const endedTrips     = allChildren.filter(c => c.type === TripCompletedCard);
 
   // ─── Estado de la pestaña activa ──────────────────────────────────────────
   // Regla de selección inicial: si hay viaje activo, arranca en 'activo';
