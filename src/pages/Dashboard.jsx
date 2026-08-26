@@ -76,6 +76,10 @@ export const Dashboard = () => {
   // Si es null, el modal de confirmación está cerrado.
   const [tripToDelete, setTripToDelete] = useState(null);
 
+  // Pestaña activa del MobileSlider: levantada aquí para poder ocultar
+  // "Gastos recientes" en móvil cuando el usuario no está viendo el Activo.
+  const [activeMobileTab, setActiveMobileTab] = useState('activo');
+
   /** Vuelve a leer la lista de viajes desde el store (fuente de verdad) */
   const recargarViajes = () => setViajes(getTrips());
 
@@ -301,7 +305,7 @@ export const Dashboard = () => {
                   <>
                     {/* MÓVIL: slider estricto 1 a 1 con puntos de paginación */}
                     <div className="w-full md:hidden">
-                      <MobileSlider>
+                      <MobileSlider onTabChange={setActiveMobileTab}>
                         {tarjetasDeViajes}
                       </MobileSlider>
                     </div>
@@ -314,8 +318,10 @@ export const Dashboard = () => {
                 )}
               </section>
 
-              {/* Columna derecha: "Gastos recientes" del viaje Activo + panel para agregar */}
-              <section className="flex flex-col gap-6 min-h-[50vh] md:min-h-[400px]">
+              {/* Columna derecha: "Gastos recientes" del viaje Activo + panel para agregar.
+               * En móvil, se oculta si no hay viaje activo O si el usuario está en otra pestaña. */}
+              {/* hideGastosOnMobile: true cuando no hay viaje activo o la tab no es 'activo' */}
+              <section className={`${!viajeActivo || activeMobileTab !== 'activo' ? 'hidden' : 'flex'} md:flex flex-col gap-6 min-h-[50vh] md:min-h-[400px]`}>
                 <div className="flex justify-between items-center">
                   <h2 className="text-h3 font-display text-ink-primary">Gastos recientes</h2>
                   {/* AGENTS.md §6: este panel solo tiene sentido para el viaje Activo.

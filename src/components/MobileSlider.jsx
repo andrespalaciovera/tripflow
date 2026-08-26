@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 
 /**
  * Tabs component — exclusivo para móvil.
@@ -11,7 +11,7 @@ import React, { useState } from 'react';
  * @param {Object}          props          - Propiedades del componente
  * @param {React.ReactNode} props.children - Tarjetas de viaje ya renderizadas
  */
-const MobileSlider = ({ children }) => {
+const MobileSlider = ({ children, onTabChange }) => {
   // ─── Categorización de hijos ──────────────────────────────────────────────
   // Usamos el nombre de la función del tipo (`child.type.name`) para distinguir
   // las tres tarjetas sin añadir props extra ni modificar Dashboard.jsx.
@@ -29,6 +29,12 @@ const MobileSlider = ({ children }) => {
   const [activeTab, setActiveTab] = useState(
     activeTrips.length > 0 ? 'activo' : 'proximos'
   );
+
+  // Notifica al padre (Dashboard) cada vez que la pestaña activa cambia,
+  // incluido el montaje inicial, para que pueda reaccionar en la UI.
+  useEffect(() => {
+    onTabChange?.(activeTab);
+  }, [activeTab, onTabChange]);
 
   // ─── Configuración de pestañas ────────────────────────────────────────────
   const tabs = [
@@ -75,7 +81,7 @@ const MobileSlider = ({ children }) => {
               id={`tab-${tab.key}`}
               onClick={() => setActiveTab(tab.key)}
               className={[
-                'flex-1 pb-2 text-label font-body transition-colors duration-200',
+                'flex-1 pb-2 text-body font-body transition-colors duration-200',
                 isActive
                   ? 'text-ink-primary font-semibold border-b-2 border-ink-primary -mb-px'
                   : 'text-ink-muted hover:text-ink-primary',
