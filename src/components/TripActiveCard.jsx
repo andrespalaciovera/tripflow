@@ -354,7 +354,7 @@ export const TripActiveCard = ({ trip, totalGastado, mostrarEnCop = true, onFina
       )}
 
       {/* Acción principal: fuera y debajo de la tarjeta blanca */}
-      {vistaActual === 'DEFAULT' && (
+      {vistaActual === 'DEFAULT' && presupuestoRestante > 0 && (
         <Button
           variant="tertiary"
           className="w-full mt-4"
