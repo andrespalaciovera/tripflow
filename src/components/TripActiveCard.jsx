@@ -333,8 +333,8 @@ export const TripActiveCard = ({ trip, totalGastado, mostrarEnCop = true, onFina
 
       {/* Sección inferior: gasto diario disponible (tarjeta blanca de solo texto) */}
       <div className="bg-overlay-w rounded-xs p-3">
-        <p className="text-body font-body text-ink-primary">Cada día restante puedes gastar</p>
-        <p className="text-h3 font-display text-ink-primary mt-1">
+        <p className="text-body font-body text-ink-primary text-center">Cada día restante puedes gastar</p>
+        <p className="text-h2 font-display text-ink-primary mt-1 text-center">
           {formatearMontoSegunModoMoneda(presupuestoDiarioRestante, destino, mostrarEnCop)}
         </p>
       </div>

@@ -95,7 +95,7 @@ export const TripComingCard = ({ trip, onDelete }) => {
           </span>
           
           {/* Contenedor de la barra de progreso */}
-          <div className="w-32 h-3 rounded-full bg-overlay-white overflow-hidden">
+          <div className="w-32 h-3 rounded-full bg-overlay-w overflow-hidden">
             <div 
               className="h-full bg-status-proximo-text rounded-full transition-all duration-500 ease-in-out"
               style={{ width: `${progreso}%` }}
